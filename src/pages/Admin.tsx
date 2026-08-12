@@ -5,6 +5,7 @@ import { Field, ImagePick, SvgPick, TextArea, TextInput } from "../admin/fields"
 import { cardSurface, uid } from "../lib/color";
 import { resolveSrc } from "../media";
 import {
+  movePublication,
   patchSite,
   removePublication,
   resetSite,
@@ -112,10 +113,9 @@ function CardsTab() {
         >
           + Новая публикация
         </button>
-        {pubs.map((p) => (
-          <button
+        {pubs.map((p, index) => (
+          <div
             key={p.id}
-            type="button"
             className={`ad-list-item${editId === p.id && !draft ? " is-on" : ""}`}
             onClick={() => {
               setDraft(null);
@@ -130,7 +130,31 @@ function CardsTab() {
               </span>
             </div>
             <i style={cardSurface(p.color)} />
-          </button>
+            <div className="ad-order">
+              <button
+                type="button"
+                aria-label="Выше"
+                disabled={index === 0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  movePublication(p.id, -1);
+                }}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                aria-label="Ниже"
+                disabled={index === pubs.length - 1}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  movePublication(p.id, 1);
+                }}
+              >
+                ↓
+              </button>
+            </div>
+          </div>
         ))}
       </aside>
       <div className="ad-editor">
@@ -154,6 +178,7 @@ function blankPub(): Publication {
   return {
     id: uid("pub"),
     createdAt: Date.now(),
+    order: -1,
     title: "Новая публикация",
     type: "article",
     color: "#FF089C",

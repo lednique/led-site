@@ -10,49 +10,58 @@ type BannerProps = {
 
 export function Banner({ data, variant }: BannerProps) {
   const img = resolveSrc(data.image);
-  const inner = (
-    <>
-      <div className="banner-copy">
-        <div className="banner-brand">
-          <FaceMark />
-          <span>{data.brand}</span>
-        </div>
-        <p className="banner-title">
-          {data.title.split("\n").map((line) => (
-            <span key={line}>
-              {line}
-              <br />
-            </span>
-          ))}
-        </p>
-        <p className="banner-cta">{data.cta}</p>
+  const copy = (
+    <div className="banner-copy">
+      <div className="banner-brand">
+        <FaceMark />
+        <span>{data.brand}</span>
       </div>
-      {variant === "rail" && <div className="banner-rule" />}
-    </>
+      <p className="banner-title">
+        {data.title.split("\n").map((line) => (
+          <span key={line}>
+            {line}
+            <br />
+          </span>
+        ))}
+      </p>
+      <p className="banner-cta">{data.cta}</p>
+      <div className="banner-rule" />
+    </div>
   );
 
   const className = `banner banner--${variant}`;
-  const style = { backgroundImage: `url(${img})` };
+
+  const body =
+    variant === "hero" ? (
+      <>
+        <div className="banner-media" style={{ backgroundImage: `url(${img})` }} />
+        {copy}
+      </>
+    ) : (
+      copy
+    );
+
+  const style = variant === "rail" ? { backgroundImage: `url(${img})` } : undefined;
 
   if (data.url) {
     const external = /^https?:|mailto:/i.test(data.url);
     if (external) {
       return (
         <a className={className} style={style} href={data.url} target="_blank" rel="noreferrer">
-          {inner}
+          {body}
         </a>
       );
     }
     return (
       <Link className={className} style={style} to={data.url}>
-        {inner}
+        {body}
       </Link>
     );
   }
 
   return (
     <div className={className} style={style}>
-      {inner}
+      {body}
     </div>
   );
 }

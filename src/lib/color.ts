@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 
 export function cardSurface(color: string): CSSProperties {
   return {
-    background: `linear-gradient(0deg, ${color} 0%, ${color} 100%), radial-gradient(ellipse 31.52% 50% at 50% 0%, #717171 0%, #111111 100%)`,
+    background: `linear-gradient(0deg, ${color} 0%, ${color} 100%), radial-gradient(circle 110px at 50% -10px, #d0d0d0 0%, #111111 100%)`,
     backgroundBlendMode: "color, normal",
   };
 }

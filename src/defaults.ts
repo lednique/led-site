@@ -6,7 +6,7 @@ export const SITE_VERSION = 2;
 export const defaultSite: SiteData = {
   version: SITE_VERSION,
   banner: {
-    image: "builtin:cyan",
+    image: "builtin:banner",
     brand: "FaceShop",
     title: "3D FACE CHART\nCOLLECTION",
     cta: "click to learn more",
@@ -27,6 +27,7 @@ export const defaultSite: SiteData = {
     {
       id: "commission",
       createdAt: Date.UTC(2026, 7, 12, 18),
+      order: 0,
       title: "AI Photosession Commision Form",
       type: "article",
       color: "#FF089C",
@@ -45,6 +46,7 @@ export const defaultSite: SiteData = {
     {
       id: "look-warm",
       createdAt: Date.UTC(2026, 7, 11, 16),
+      order: 1,
       title: "AI Photosession Commision Form",
       type: "link",
       color: "#D86B09",
@@ -55,6 +57,7 @@ export const defaultSite: SiteData = {
     {
       id: "sunglasses",
       createdAt: Date.UTC(2026, 7, 10, 14),
+      order: 2,
       title: "Sunglasses 3D Model",
       type: "article",
       color: "#085AFF",
@@ -73,6 +76,7 @@ export const defaultSite: SiteData = {
     {
       id: "tracebase",
       createdAt: Date.UTC(2026, 7, 8, 12),
+      order: 3,
       title: "LED TraceBase",
       type: "article",
       color: "#75A2BD",
@@ -90,6 +94,7 @@ export const defaultSite: SiteData = {
     {
       id: "look-link",
       createdAt: Date.UTC(2026, 7, 6, 10),
+      order: 4,
       title: "AI Photosession Commision Form",
       type: "link",
       color: "#D86B09",
@@ -100,6 +105,7 @@ export const defaultSite: SiteData = {
     {
       id: "about",
       createdAt: Date.UTC(2026, 6, 20, 9),
+      order: 5,
       title: "Studio note",
       type: "article",
       color: "#75A2BD",

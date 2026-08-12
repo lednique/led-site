@@ -9,6 +9,7 @@ export type ArticleBlock =
 export type Publication = {
   id: string;
   createdAt: number;
+  order: number;
   title: string;
   type: "link" | "article";
   color: string;
