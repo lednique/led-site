@@ -197,6 +197,11 @@ img {
   z-index: 5;
 }
 
+.top-chrome-slot {
+  width: 100%;
+  flex-shrink: 0;
+}
+
 .top-chrome {
   width: 100%;
   flex-shrink: 0;
@@ -1161,14 +1166,24 @@ img {
 }
 
 @media (max-width: 799px) {
-  html,
+  /* Скроллит viewport, не внутренние контейнеры. overflow:auto/hidden
+     на body/#root создаёт scrollport высотой с контент — sticky
+     «липнет» внутри него и уезжает вместе со страницей. clip на html
+     режет горизонтальный вылет и не создаёт scroll-контейнер. */
+  html {
+    height: auto;
+    min-height: 100%;
+    min-height: 100dvh;
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
   body,
   #root {
     height: auto;
     min-height: 100%;
     min-height: 100dvh;
-    overflow-x: hidden;
-    overflow-y: auto;
+    overflow: visible;
   }
 
   .page,
@@ -1229,13 +1244,14 @@ img {
     transform: rotate(90deg);
   }
 
-  /* Открытое меню сдвигает страницу на 120px вниз. */
+  /* Открытое меню сдвигает страницу вниз. margin, не transform:
+     transform на предке ломает sticky/fixed у шапки. */
   .site {
-    transition: transform 300ms var(--link-ease);
+    transition: margin-top 300ms var(--link-ease);
   }
 
   .site.menu-open {
-    transform: translateY(120px);
+    margin-top: 120px;
   }
 
   .menu-panel {
@@ -1351,11 +1367,27 @@ img {
     transition: none;
   }
 
-  /* Шапка (логотип + градиент с якорем) липнет к верху при скролле страницы.
-     Карточный блок ниже — обычный поток, НЕ прижат к нижней границе экрана. */
+  /* Слот держит высоту шапки в потоке. Шапка липнет к верху (sticky),
+     а после ухода баннера становится fixed — если iOS сломает sticky.
+     Карточки при этом не прижаты к нижней границе экрана. */
+  .top-chrome-slot {
+    min-height: 80px;
+  }
+
   .top-chrome {
     position: sticky;
     top: 0;
+    z-index: 40;
+    width: 100%;
+    background: #000;
+  }
+
+  .sidebar.is-scrolled .top-chrome {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
   }
 
   .topbar {
@@ -1450,7 +1482,11 @@ img {
   }
 
   .site.menu-open {
-    transform: translateY(calc(120px + env(safe-area-inset-top, 0px)));
+    margin-top: calc(120px + env(safe-area-inset-top, 0px));
+  }
+
+  .sidebar.is-scrolled .top-chrome {
+    top: env(safe-area-inset-top, 0px);
   }
 }
 
