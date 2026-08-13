@@ -52,23 +52,27 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome, me
   useEffect(() => {
     const el = mobile ? sidebarRef.current : scroller.current;
     if (!el) return;
+
     const onScroll = () => {
       if (!mobile) {
         setScrolled(el.scrollTop > 12);
         return;
       }
+
       const banner = el.querySelector(".rail-banner") as HTMLElement | null;
-      setScrolled(el.scrollTop > (banner?.offsetHeight ?? 250));
+      setScrolled(window.scrollY > (banner?.offsetHeight ?? 250));
     };
+
     onScroll();
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    const target: HTMLElement | Window = mobile ? window : el;
+    target.addEventListener("scroll", onScroll, { passive: true });
+    return () => target.removeEventListener("scroll", onScroll);
   }, [mobile]);
 
   useEffect(() => {
-    const root = mobile ? sidebarRef.current : scroller.current;
+    const root = scroller.current;
     const node = sentinel.current;
-    if (!root || !node) return;
+    if (!node || (!mobile && !root)) return;
     const io = new IntersectionObserver(
       ([entry]) => {
         if (!entry.isIntersecting || !hasMore || loadingMore) return;
@@ -78,7 +82,7 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome, me
           setLoadingMore(false);
         }, 420);
       },
-      { root, rootMargin: "80px" },
+      { root: mobile ? null : root, rootMargin: "80px" },
     );
     io.observe(node);
     return () => io.disconnect();
@@ -140,7 +144,9 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome, me
             type="button"
             className="scroll-anchor"
             aria-label="Наверх"
-            onClick={() => (mobile ? sidebarRef.current : scroller.current)?.scrollTo({ top: 0, behavior: "smooth" })}
+            onClick={() =>
+              mobile ? window.scrollTo({ top: 0, behavior: "smooth" }) : scroller.current?.scrollTo({ top: 0, behavior: "smooth" })
+            }
           >
             <svg width="18" height="10" viewBox="0 0 18 10" fill="none" aria-hidden>
               <path d="M1 9L9 1L17 9" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
