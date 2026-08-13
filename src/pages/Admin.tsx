@@ -11,6 +11,7 @@ import {
   patchSite,
   removePublication,
   savePublication,
+  saveSiteSettings,
   sortedPublications,
   useSite,
   useSyncState,
@@ -26,6 +27,22 @@ export function AdminPage() {
   const [authed, setAuthed] = useState(() => sessionStorage.getItem("led-admin") === "1");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [savedFlash, setSavedFlash] = useState(false);
+
+  /** Единственная кнопка сохранения всех настроек сайта (баннер, кнопки, меню…). */
+  async function onSaveSettings() {
+    if (saving) return;
+    setSaving(true);
+    try {
+      if (await saveSiteSettings()) {
+        setSavedFlash(true);
+        window.setTimeout(() => setSavedFlash(false), 2000);
+      }
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function login(e: React.FormEvent) {
     e.preventDefault();
@@ -87,16 +104,26 @@ export function AdminPage() {
           <h1>Панель управления</h1>
         </div>
         <div className="ad-top-actions">
-          <p className={`ad-sync ad-sync--${sync.mode}${sync.error ? " is-error" : ""}`}>
-            {sync.mode === "live" && !sync.error
-              ? sync.migrated
-                ? "Локальные данные опубликованы в базу"
-                : "Supabase · изменения сразу на всех устройствах"
-              : sync.mode === "offline"
-                ? `Нет связи с базой${sync.error ? ` · ${sync.error}` : ""}`
-                : "Только это устройство · задайте VITE_SUPABASE_URL"}
+          <p className={`ad-sync ad-sync--${sync.mode}${sync.error ? " is-error" : ""}${sync.dirty ? " is-dirty" : ""}`}>
+            {sync.dirty
+              ? "Есть несохранённые изменения · нажмите «Сохранить»"
+              : sync.mode === "live" && !sync.error
+                ? sync.migrated
+                  ? "Локальные данные опубликованы в базу"
+                  : "Supabase · настройки сохраняются кнопкой «Сохранить»"
+                : sync.mode === "offline"
+                  ? `Нет связи с базой${sync.error ? ` · ${sync.error}` : ""}`
+                  : "Только это устройство · задайте VITE_SUPABASE_URL"}
           </p>
-          <Link className="ad-btn" to="/">
+          <button
+            type="button"
+            className={`ad-btn ad-btn--save${sync.dirty ? " is-dirty" : ""}`}
+            onClick={onSaveSettings}
+            disabled={saving}
+          >
+            {savedFlash ? "Сохранено ✓" : saving ? "Сохраняю…" : "Сохранить"}
+          </button>
+          <Link className="ad-btn" to="/" target="_blank" rel="noreferrer">
             К сайту
           </Link>
         </div>

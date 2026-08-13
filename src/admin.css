@@ -55,6 +55,10 @@
   color: #ff8aa8;
 }
 
+.ad-sync.is-dirty {
+  color: #ffd479;
+}
+
 .ad-favicon-block {
   display: flex;
   align-items: flex-start;
@@ -179,6 +183,24 @@
 .ad-btn {
   background: #fff;
   color: #111;
+}
+
+/* Кнопка «Сохранить» (все настройки сайта одной кнопкой): спокойная, пока
+   правок нет, и подсвечивается, когда в панели есть несохранённые изменения. */
+.ad-btn--save {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  min-width: 120px;
+}
+
+.ad-btn--save.is-dirty {
+  background: #fff;
+  color: #111;
+}
+
+.ad-btn--save:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .ad-btn-full {
