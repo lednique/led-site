@@ -128,6 +128,13 @@ img {
   z-index: 5;
 }
 
+.top-chrome {
+  width: 100%;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 30;
+}
+
 .rail-banner {
   width: 390px;
   height: 0;
@@ -517,20 +524,24 @@ img {
 }
 
 .sidebar-topfade {
+  position: relative;
+  height: 0;
+  overflow: visible;
+  pointer-events: none;
+  opacity: 0;
+  z-index: 20;
+  transition: opacity 200ms ease;
+}
+
+.sidebar-topfade::before {
+  content: "";
   position: absolute;
   left: 0;
   right: 0;
   top: 0;
   height: 88px;
   background: linear-gradient(180deg, #000 18%, rgba(0, 0, 0, 0) 100%);
-  opacity: 0;
   pointer-events: none;
-  z-index: 20;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-  padding-top: 16px;
-  transition: opacity 200ms ease;
 }
 
 .sidebar-topfade.is-on {
@@ -538,6 +549,10 @@ img {
 }
 
 .scroll-anchor {
+  position: absolute;
+  left: 50%;
+  top: 16px;
+  transform: translateX(-50%);
   pointer-events: auto;
   background: none;
   border: none;
@@ -932,6 +947,15 @@ img {
 
   .sidebar {
     background: #000;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    display: none;
   }
 
   .sidebar-blur {
@@ -942,9 +966,47 @@ img {
     display: none;
   }
 
+  .rail-banner,
+  .banner--rail {
+    width: 100%;
+  }
+
   .rail-banner {
     height: 250px;
     opacity: 1;
+    flex-shrink: 0;
+    transition: none;
+  }
+
+  .top-chrome {
+    position: sticky;
+    top: 0;
+  }
+
+  .topbar {
+    position: relative;
+    top: auto;
+    z-index: 5;
+    width: 100%;
+    background: #000;
+  }
+
+  .sidebar.is-scrolled .topbar {
+    background: #000;
+  }
+
+  .board-wrap {
+    flex: 0 0 auto;
+    height: auto;
+    min-height: auto;
+    max-height: none;
+  }
+
+  .sidebar-scroll {
+    overflow: visible;
+    flex: none;
+    height: auto;
+    min-height: auto;
   }
 
   .mobile-sheet {
