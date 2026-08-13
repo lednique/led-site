@@ -197,11 +197,6 @@ img {
   z-index: 5;
 }
 
-.top-chrome-slot {
-  width: 100%;
-  flex-shrink: 0;
-}
-
 .top-chrome {
   width: 100%;
   flex-shrink: 0;
@@ -631,7 +626,7 @@ img {
   pointer-events: none;
   opacity: 0;
   z-index: 20;
-  transition: opacity 200ms ease;
+  transition: opacity 280ms ease;
 }
 
 .sidebar-topfade::before {
@@ -1367,27 +1362,15 @@ img {
     transition: none;
   }
 
-  /* Слот держит высоту шапки в потоке. Шапка липнет к верху (sticky),
-     а после ухода баннера становится fixed — если iOS сломает sticky.
-     Карточки при этом не прижаты к нижней границе экрана. */
-  .top-chrome-slot {
-    min-height: 80px;
-  }
-
+  /* Только sticky: шапка едет вместе со страницей и плавно
+     останавливается у верхнего края. fixed давал рывок в момент смены. */
   .top-chrome {
     position: sticky;
     top: 0;
+    top: env(safe-area-inset-top, 0px);
     z-index: 40;
     width: 100%;
     background: #000;
-  }
-
-  .sidebar.is-scrolled .top-chrome {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
   }
 
   .topbar {
@@ -1483,10 +1466,6 @@ img {
 
   .site.menu-open {
     margin-top: calc(120px + env(safe-area-inset-top, 0px));
-  }
-
-  .sidebar.is-scrolled .top-chrome {
-    top: env(safe-area-inset-top, 0px);
   }
 }
 

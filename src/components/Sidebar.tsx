@@ -130,30 +130,28 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome, me
         </button>
       </div>
 
-      <div className="top-chrome-slot">
-        <div className="top-chrome">
-          <header className="topbar">
-            <div className="topbar-actions">
-              {data.nav.slice(0, 4).map((btn) => (
-                <NavButton key={btn.id} label={loc(btn.label)} href={btn.url} svg={btn.svg} />
-              ))}
-            </div>
-            <Logo onClick={onHome} />
-          </header>
-          <div className={`sidebar-topfade${scrolled ? " is-on" : ""}`}>
-            <button
-              type="button"
-              className="scroll-anchor"
-              aria-label="Наверх"
-              onClick={() =>
-                mobile ? window.scrollTo({ top: 0, behavior: "smooth" }) : scroller.current?.scrollTo({ top: 0, behavior: "smooth" })
-              }
-            >
-              <svg width="18" height="10" viewBox="0 0 18 10" fill="none" aria-hidden>
-                <path d="M1 9L9 1L17 9" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+      <div className="top-chrome">
+        <header className="topbar">
+          <div className="topbar-actions">
+            {data.nav.slice(0, 4).map((btn) => (
+              <NavButton key={btn.id} label={loc(btn.label)} href={btn.url} svg={btn.svg} />
+            ))}
           </div>
+          <Logo onClick={onHome} />
+        </header>
+        <div className={`sidebar-topfade${scrolled ? " is-on" : ""}`}>
+          <button
+            type="button"
+            className="scroll-anchor"
+            aria-label="Наверх"
+            onClick={() =>
+              mobile ? window.scrollTo({ top: 0, behavior: "smooth" }) : scroller.current?.scrollTo({ top: 0, behavior: "smooth" })
+            }
+          >
+            <svg width="18" height="10" viewBox="0 0 18 10" fill="none" aria-hidden>
+              <path d="M1 9L9 1L17 9" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
       </div>
 
