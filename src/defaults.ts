@@ -8,11 +8,15 @@ function L(en: string, ru: string) {
 }
 
 export function blankPublication(): Publication {
+  // EN и RU создаются синхронно: одинаковая структура блоков, одинаковые id
+  // и одинаковый стартовый текст (русская версия берёт английский).
+  const blockId = `b-${Date.now()}`;
+  const blocks: Publication["blocks"]["en"] = [{ id: blockId, type: "heading", text: "Heading" }];
   return {
     id: crypto.randomUUID?.() ?? `pub-${Date.now()}`,
     createdAt: Date.now(),
     order: -1,
-    title: L("New publication", "Новая публикация"),
+    title: L("New publication", "New publication"),
     type: "article",
     color: DEFAULT_ACCENT,
     image: "",
@@ -20,8 +24,8 @@ export function blankPublication(): Publication {
     hashtags: [],
     enEnabled: true,
     blocks: {
-      en: [{ id: `b-${Date.now()}`, type: "heading", text: "Heading" }],
-      ru: [{ id: `b-ru-${Date.now()}`, type: "heading", text: "Заголовок" }],
+      en: blocks,
+      ru: blocks.map((b) => ({ ...b })),
     },
   };
 }

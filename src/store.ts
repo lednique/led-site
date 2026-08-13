@@ -261,20 +261,30 @@ export function getPublication(id: string | undefined): Publication | undefined 
 }
 
 async function materializePublication(pub: Publication): Promise<Publication> {
-  const image = await ensureRemoteSrc(pub.image, "cards");
-  const blocks = {
-    en: await Promise.all(
-      pub.blocks.en.map(async (block) =>
-        block.type === "image" ? { ...block, src: await ensureRemoteSrc(block.src, "article") } : block,
-      ),
-    ),
-    ru: await Promise.all(
-      pub.blocks.ru.map(async (block) =>
-        block.type === "image" ? { ...block, src: await ensureRemoteSrc(block.src, "article") } : block,
-      ),
-    ),
+  // Одна и та же картинка в английской и русской версии должна получить один
+  // путь на сервере, поэтому загрузку кешируем по исходному data: URL.
+  const uploads = new Map<string, Promise<string>>();
+  const uploadOnce = (src: string, folder: string) => {
+    const cached = uploads.get(src);
+    if (cached) return cached;
+    const started = ensureRemoteSrc(src, folder);
+    uploads.set(src, started);
+    return started;
   };
-  return { ...pub, image, blocks };
+
+  const materializeBlocks = (blocks: Publication["blocks"]["en"]) =>
+    Promise.all(
+      blocks.map(async (block) =>
+        block.type === "image" ? { ...block, src: await uploadOnce(block.src, "article") } : block,
+      ),
+    );
+
+  const [image, en, ru] = await Promise.all([
+    uploadOnce(pub.image, "cards"),
+    materializeBlocks(pub.blocks.en),
+    materializeBlocks(pub.blocks.ru),
+  ]);
+  return { ...pub, image, blocks: { en, ru } };
 }
 
 async function persistSettings() {

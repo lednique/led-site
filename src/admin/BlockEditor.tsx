@@ -31,8 +31,10 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
         : type === "text"
           ? { id, type, markdown: "**Текст** статьи" }
           : type === "image"
-            ? { id, type, src: "builtin:hero", alt: "" }
-            : { id, type };
+            ? { id, type, src: "", alt: "" }
+            : type === "link"
+              ? { id, type, label: "Открыть", url: "https://", style: "solid" }
+              : { id, type };
     onChange([...blocks, block]);
   }
 
@@ -47,6 +49,9 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
         </button>
         <button type="button" onClick={() => add("image")}>
           + Изображение
+        </button>
+        <button type="button" onClick={() => add("link")}>
+          + Кнопка-ссылка
         </button>
         <button type="button" onClick={() => add("form")}>
           + Форма
@@ -63,7 +68,9 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                   ? "Текст"
                   : block.type === "image"
                     ? "Изображение"
-                    : "Форма"}
+                    : block.type === "link"
+                      ? "Кнопка-ссылка"
+                      : "Форма"}
             </strong>
             <div className="ad-block-actions">
               <button type="button" disabled={index === 0} onClick={() => move(block.id, -1)}>
@@ -133,6 +140,49 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
             </>
           )}
 
+          {block.type === "link" && (
+            <div className="ad-link-block">
+              <Field label="Текст кнопки">
+                <TextInput
+                  value={block.label}
+                  onChange={(e) => update(block.id, { label: e.target.value })}
+                  placeholder="Открыть"
+                />
+              </Field>
+              <Field label="Ссылка">
+                <TextInput
+                  value={block.url}
+                  onChange={(e) => update(block.id, { url: e.target.value })}
+                  placeholder="https://"
+                />
+              </Field>
+              <Field label="Вид">
+                <div className="ad-type">
+                  <button
+                    type="button"
+                    className={(block.style ?? "solid") === "solid" ? "is-on" : ""}
+                    onClick={() => update(block.id, { style: "solid" })}
+                  >
+                    Заливка
+                  </button>
+                  <button
+                    type="button"
+                    className={block.style === "ghost" ? "is-on" : ""}
+                    onClick={() => update(block.id, { style: "ghost" })}
+                  >
+                    Контур
+                  </button>
+                </div>
+              </Field>
+              <div className="ad-link-preview">
+                <span className={`article-link article-link--${block.style ?? "solid"}`}>
+                  {block.label || "Открыть"}
+                  <LinkGlyph />
+                </span>
+              </div>
+            </div>
+          )}
+
           {block.type === "form" && <p className="ad-hint">Контактная форма: имя, почта, сообщение.</p>}
         </div>
       ))}
@@ -142,6 +192,20 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
 
 function wrap(src: string, token: string): string {
   return `${src}${token}текст${token}`;
+}
+
+function LinkGlyph() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+      <path
+        d="M5 2.5h6.5V9M11.2 2.8 2.5 11.5"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 function MdBtn({ label, title, onClick }: { label: string; title: string; onClick: () => void }) {

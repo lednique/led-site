@@ -59,10 +59,20 @@ begin
   end if;
 end $$;
 
--- Картинки (баннер, карточки, favicon) хранятся в Storage, в базе — только ссылки
-insert into storage.buckets (id, name, public, file_size_limit)
-values ('media', 'media', true, 5242880)
-on conflict (id) do update set public = true, file_size_limit = 5242880;
+-- Картинки (баннер, карточки, favicon) хранятся в Storage, в базе — только ссылки.
+-- Анимированные GIF и APNG загружаются без пережатия, поэтому лимит 20 МБ.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'media',
+  'media',
+  true,
+  20971520,
+  array['image/jpeg', 'image/png', 'image/apng', 'image/gif', 'image/webp', 'image/svg+xml', 'image/x-icon', 'image/vnd.microsoft.icon']
+)
+on conflict (id) do update set
+  public = true,
+  file_size_limit = 20971520,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 drop policy if exists "media read" on storage.objects;
 drop policy if exists "media write" on storage.objects;

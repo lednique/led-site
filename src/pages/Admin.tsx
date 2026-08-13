@@ -4,6 +4,7 @@ import { BlockEditor } from "../admin/BlockEditor";
 import { Field, HashtagField, ImagePick, SvgPick, TextArea, TextInput } from "../admin/fields";
 import { DEFAULT_ACCENT } from "../defaults";
 import { cardSurface, uid } from "../lib/color";
+import { alignPublicationBlocks, copyBlocks, mirrorText, syncBlocks } from "../lib/mirror";
 import { resolveSrc } from "../media";
 import {
   movePublication,
@@ -14,7 +15,7 @@ import {
   useSite,
   useSyncState,
 } from "../store";
-import type { Locale, Localized, NavItem, Publication, SocialItem } from "../types";
+import type { ArticleBlock, Locale, Localized, NavItem, Publication, SocialItem } from "../types";
 
 type Tab = "cards" | "banner" | "buttons";
 
@@ -283,21 +284,21 @@ function CardsTab() {
 
 function blankPub(): Publication {
   const id = uid("pub");
+  // Обе версии стартуют с одинаковой структурой и одинаковым текстом:
+  // русская вкладка получает английский текст, пока его не перевели.
+  const blocks: ArticleBlock[] = [{ id: uid("b"), type: "heading", text: "Heading" }];
   return {
     id,
     createdAt: Date.now(),
     order: -1,
-    title: { en: "New publication", ru: "Новая публикация" },
+    title: { en: "New publication", ru: "New publication" },
     type: "article",
     color: DEFAULT_ACCENT,
     image: "",
     url: "",
     hashtags: [],
     enEnabled: true,
-    blocks: {
-      en: [{ id: uid("b"), type: "heading", text: "Heading" }],
-      ru: [{ id: uid("b"), type: "heading", text: "Заголовок" }],
-    },
+    blocks: { en: blocks, ru: copyBlocks(blocks) },
   };
 }
 
@@ -310,7 +311,10 @@ function CardForm({
   isNew: boolean;
   onSaved: (id: string) => void;
 }) {
-  const [pub, setPub] = useState<Publication>(initial);
+  const [pub, setPub] = useState<Publication>(() => ({
+    ...initial,
+    blocks: alignPublicationBlocks(initial.blocks, "en"),
+  }));
   const [lang, setLang] = useState<Locale>("en");
 
   useEffect(() => {
@@ -319,6 +323,27 @@ function CardForm({
 
   function patch(partial: Partial<Publication>) {
     setPub((p) => ({ ...p, ...partial }));
+  }
+
+  /** Заголовок: правим текущую вкладку, соседняя подхватывает текст, пока её не перевели. */
+  function patchTitle(value: string) {
+    setPub((p) => ({ ...p, title: mirrorText(p.title, lang, value) }));
+  }
+
+  /**
+   * Блоки статьи: структура (набор, порядок, типы), путь к изображению и адрес
+   * ссылки всегда одинаковы в обеих вкладках. Текст копируется в соседнюю
+   * версию, пока его там не изменили вручную.
+   */
+  function patchBlocks(next: ArticleBlock[]) {
+    setPub((p) => {
+      const other = lang === "en" ? "ru" : "en";
+      const mirrored = syncBlocks(p.blocks[lang], next, p.blocks[other], lang);
+      return {
+        ...p,
+        blocks: lang === "en" ? { en: next, ru: mirrored } : { ru: next, en: mirrored },
+      };
+    });
   }
 
   return (
@@ -349,11 +374,7 @@ function CardForm({
         <ImagePick label="Изображение" variant="tall" folder="cards" value={pub.image} onChange={(image) => patch({ image })} />
         <div className="ad-card-fields">
           <Field label="Заголовок карточки">
-            <TextInput
-              value={pub.title[lang]}
-              onChange={(e) => patch({ title: { ...pub.title, [lang]: e.target.value } })}
-              required
-            />
+            <TextInput value={pub.title[lang]} onChange={(e) => patchTitle(e.target.value)} required />
           </Field>
 
           <div className="ad-type">
@@ -386,11 +407,11 @@ function CardForm({
       {pub.type === "article" && (
         <div className="ad-article">
           <h3>Редактор статьи · {lang === "en" ? "EN" : "RU"}</h3>
-          <p className="ad-hint">Блоки с шагом 10 px. Текст — Markdown.</p>
-          <BlockEditor
-            blocks={pub.blocks[lang]}
-            onChange={(blocks) => patch({ blocks: { ...pub.blocks, [lang]: blocks } })}
-          />
+          <p className="ad-hint">
+            Блоки с шагом 10 px. Текст — Markdown. Структура, изображения и ссылки общие для обеих версий:
+            добавленный блок сразу появляется во второй вкладке с тем же текстом, пока его не перевели.
+          </p>
+          <BlockEditor blocks={pub.blocks[lang]} onChange={patchBlocks} />
         </div>
       )}
 

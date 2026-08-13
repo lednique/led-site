@@ -1,8 +1,9 @@
 import { useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { pickLocale, useI18n } from "../i18n";
 import { MarkdownView } from "../lib/markdown";
 import { resolveSrc } from "../media";
-import type { Publication } from "../types";
+import type { ArticleBlock, Publication } from "../types";
 import { CloseIcon } from "./Icons";
 import { NavButton } from "./NavButton";
 
@@ -38,12 +39,61 @@ export function ArticleView({ pub, onClose }: ArticleViewProps) {
             return <MarkdownView key={block.id} source={block.markdown} />;
           }
           if (block.type === "image") {
-            return <img key={block.id} className="block-image" src={resolveSrc(block.src)} alt={block.alt} />;
+            return (
+              <img
+                key={block.id}
+                className="block-image"
+                src={resolveSrc(block.src)}
+                alt={block.alt}
+                loading="lazy"
+                decoding="async"
+              />
+            );
+          }
+          if (block.type === "link") {
+            return <ArticleLink key={block.id} block={block} />;
           }
           return <ContactForm key={block.id} />;
         })}
       </div>
     </article>
+  );
+}
+
+function ArticleLink({ block }: { block: Extract<ArticleBlock, { type: "link" }> }) {
+  const { t } = useI18n();
+  const url = (block.url || "").trim();
+  const label = block.label?.trim() || t("Open", "Открыть");
+  const className = `article-link article-link--${block.style ?? "solid"}`;
+  const inner = (
+    <>
+      {label}
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+        <path
+          d="M5 2.5h6.5V9M11.2 2.8 2.5 11.5"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </>
+  );
+
+  if (!url || url === "https://") return <span className={className}>{inner}</span>;
+
+  const external = /^(https?:|mailto:|tel:)/i.test(url);
+  if (external) {
+    return (
+      <a className={className} href={url} target="_blank" rel="noreferrer">
+        {inner}
+      </a>
+    );
+  }
+  return (
+    <Link className={className} to={url}>
+      {inner}
+    </Link>
   );
 }
 
