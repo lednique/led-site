@@ -1,5 +1,6 @@
 import { useNavigate, useParams } from "react-router-dom";
 import { Banner } from "../components/Banner";
+import { SiteLoader } from "../components/Loader";
 import { Sidebar } from "../components/Sidebar";
 import { Stage } from "../components/Stage";
 import { useI18n } from "../i18n";
@@ -14,8 +15,12 @@ export function SitePage() {
   const article = id ? data.publications.find((p) => p.id === id) : undefined;
   const open = Boolean(article);
 
+  if (!ready) {
+    return <SiteLoader />;
+  }
+
   return (
-    <div className={`page${ready ? "" : " is-loading"}`}>
+    <div className="page">
       <div className="site">
         {!open && <Banner data={data.banner} variant="hero" />}
         <Sidebar
