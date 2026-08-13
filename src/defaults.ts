@@ -29,12 +29,44 @@ export const MENU_PAGES: { key: MenuPageKey; label: Localized }[] = [
 /** Стартовое содержимое страницы меню — заголовок с именем страницы. */
 function pageStarter(label: Localized): PageContent {
   const heading = (text: string): ArticleBlock => ({ id: uid("b"), type: "heading", text });
-  return { en: [heading(label.en)], ru: [heading(label.ru)] };
+  return { en: [heading(label.en)], ru: [heading(label.ru)], label: { ...label } };
 }
 
-function defaultPages(): SitePages {
+export function defaultPages(): SitePages {
   const entries = MENU_PAGES.map((p) => [p.key, pageStarter(p.label)] as const);
   return Object.fromEntries(entries) as SitePages;
+}
+
+/** Подпись кнопки меню: из сохранённых страниц или заводская. */
+export function pageLabel(pages: SitePages | undefined, key: MenuPageKey): Localized {
+  const saved = pages?.[key]?.label;
+  if (saved?.en || saved?.ru) return { en: saved.en || saved.ru, ru: saved.ru || saved.en };
+  return MENU_PAGES.find((p) => p.key === key)!.label;
+}
+
+function isBlockList(value: unknown): value is ArticleBlock[] {
+  return Array.isArray(value);
+}
+
+/**
+ * Склеивает страницы меню с заводскими: пустой `{}` из базы не должен
+ * затирать три кнопки, иначе вкладка «Меню» в панели падает.
+ */
+export function mergePages(raw: unknown, fallback: SitePages = defaultPages()): SitePages {
+  const src = raw && typeof raw === "object" ? (raw as Partial<Record<MenuPageKey, Partial<PageContent>>>) : {};
+  const next = { ...fallback };
+  for (const meta of MENU_PAGES) {
+    const incoming = src[meta.key];
+    const base = fallback[meta.key];
+    next[meta.key] = {
+      en: incoming && isBlockList(incoming.en) ? incoming.en : base.en,
+      ru: incoming && isBlockList(incoming.ru) ? incoming.ru : base.ru,
+      label: incoming?.label?.en || incoming?.label?.ru
+        ? { en: incoming.label?.en || meta.label.en, ru: incoming.label?.ru || meta.label.ru }
+        : (base.label ?? { ...meta.label }),
+    };
+  }
+  return next;
 }
 
 export function blankPublication(): Publication {

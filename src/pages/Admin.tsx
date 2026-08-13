@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BlockEditor } from "../admin/BlockEditor";
 import { Field, HashtagField, ImagePick, SvgPick, TextArea, TextInput } from "../admin/fields";
-import { DEFAULT_ACCENT, MENU_PAGES } from "../defaults";
+import { DEFAULT_ACCENT, MENU_PAGES, pageLabel } from "../defaults";
 import { cardSurface, uid } from "../lib/color";
 import { alignPublicationBlocks, copyBlocks, mirrorText, syncBlocks } from "../lib/mirror";
 import { resolveSrc } from "../media";
@@ -595,52 +595,95 @@ function ButtonsTab() {
 }
 
 function MenuTab() {
+  const data = useSite();
+  const [editKey, setEditKey] = useState<MenuPageKey>("about");
+
   return (
-    <div className="ad-menu-pages">
-      <p className="ad-hint">
-        Страницы верхнего меню в мобильной шапке. Контент редактируется теми же
-        блоками, что и карточки; структура и картинки общие для обеих языковых
-        версий, текст копируется, пока его не перевели.
-      </p>
-      {MENU_PAGES.map((p) => (
-        <MenuPageEditor key={p.key} pageKey={p.key} />
-      ))}
+    <div className="ad-split">
+      <aside className="ad-list">
+        <p className="ad-hint">
+          Три кнопки верхнего меню. Откройте, чтобы править название и статью — как карточку, но без картинки, цвета и типа.
+        </p>
+        {MENU_PAGES.map((p) => {
+          const label = pageLabel(data.pages, p.key);
+          return (
+            <div
+              key={p.key}
+              className={`ad-list-item ad-list-item--menu${editKey === p.key ? " is-on" : ""}`}
+              onClick={() => setEditKey(p.key)}
+            >
+              <i className="ad-thumb-empty" />
+              <div>
+                <strong>{label.ru || label.en}</strong>
+                <span>{label.en || label.ru}</span>
+              </div>
+            </div>
+          );
+        })}
+      </aside>
+      <div className="ad-editor">
+        <MenuPageForm key={editKey} pageKey={editKey} />
+      </div>
     </div>
   );
 }
 
-function MenuPageEditor({ pageKey }: { pageKey: MenuPageKey }) {
+function MenuPageForm({ pageKey }: { pageKey: MenuPageKey }) {
   const data = useSite();
   const [lang, setLang] = useState<Locale>("en");
   const meta = MENU_PAGES.find((p) => p.key === pageKey)!;
-  const content = data.pages[pageKey];
+  const raw = data.pages[pageKey] ?? { en: [], ru: [], label: meta.label };
+  const blocks = alignPublicationBlocks({ en: raw.en ?? [], ru: raw.ru ?? [] }, "en");
+  const label = pageLabel(data.pages, pageKey);
 
-  function patchBlocks(next: ArticleBlock[]) {
-    const other = lang === "en" ? "ru" : "en";
-    const mirrored = syncBlocks(content[lang], next, content[other], lang);
+  function patchPage(partial: { en?: ArticleBlock[]; ru?: ArticleBlock[]; label?: Localized }) {
     patchSite({
       pages: {
         ...data.pages,
-        [pageKey]: lang === "en" ? { en: next, ru: mirrored } : { ru: next, en: mirrored },
+        [pageKey]: {
+          en: partial.en ?? blocks.en,
+          ru: partial.ru ?? blocks.ru,
+          label: partial.label ?? label,
+        },
       },
     });
   }
 
+  function patchBlocks(next: ArticleBlock[]) {
+    const other = lang === "en" ? "ru" : "en";
+    const mirrored = syncBlocks(blocks[lang], next, blocks[other], lang);
+    patchPage(lang === "en" ? { en: next, ru: mirrored } : { ru: next, en: mirrored });
+  }
+
+  function patchTitle(value: string) {
+    patchPage({ label: mirrorText(label, lang, value) });
+  }
+
   return (
-    <section className="ad-menu-page">
-      <div className="ad-menu-head">
-        <h3>{lang === "ru" ? meta.label.ru : meta.label.en}</h3>
+    <div className="ad-form">
+      <div className="ad-lang-row">
         <div className="ad-type">
           <button type="button" className={lang === "en" ? "is-on" : ""} onClick={() => setLang("en")}>
-            EN
+            Английская версия
           </button>
           <button type="button" className={lang === "ru" ? "is-on" : ""} onClick={() => setLang("ru")}>
-            RU
+            Русская версия
           </button>
         </div>
       </div>
-      <BlockEditor blocks={content[lang]} onChange={patchBlocks} />
-    </section>
+
+      <Field label="Название кнопки">
+        <TextInput value={label[lang]} onChange={(e) => patchTitle(e.target.value)} required />
+      </Field>
+
+      <div className="ad-article">
+        <h3>Редактор статьи · {lang === "en" ? "EN" : "RU"}</h3>
+        <p className="ad-hint">
+          Те же блоки, что у карточек. Структура, изображения и ссылки общие для обеих версий; текст копируется, пока его не перевели.
+        </p>
+        <BlockEditor blocks={blocks[lang]} onChange={patchBlocks} />
+      </div>
+    </div>
   );
 }
 

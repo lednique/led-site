@@ -1,5 +1,6 @@
 import { useNavigate } from "react-router-dom";
-import { MENU_PAGES } from "../defaults";
+import { MENU_PAGES, pageLabel } from "../defaults";
+import { useSite } from "../store";
 import { useI18n } from "../i18n";
 import type { MenuPageKey } from "../types";
 
@@ -16,6 +17,7 @@ type MenuPanelProps = {
 export function MenuPanel({ open, onClose }: MenuPanelProps) {
   const navigate = useNavigate();
   const { locale, setLocale, t } = useI18n();
+  const data = useSite();
 
   function go(key: MenuPageKey) {
     navigate(`/m/${key}`);
@@ -32,7 +34,9 @@ export function MenuPanel({ open, onClose }: MenuPanelProps) {
             className="menu-item"
             onClick={() => go(p.key)}
           >
-            <span className="menu-item-text">{locale === "ru" ? p.label.ru : p.label.en}</span>
+            <span className="menu-item-text">
+              {locale === "ru" ? pageLabel(data.pages, p.key).ru : pageLabel(data.pages, p.key).en}
+            </span>
           </button>
         ))}
       </div>
