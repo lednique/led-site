@@ -1042,7 +1042,13 @@ img {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 560px;
+  /* Широкая колонка (до 900 px), прижата margin-left: auto к правому краю
+     .stage-reader — текст и картинка «уходят» вправо. Когда места
+     меньше — колонка сужается вместе с правым контейнером, и картинка
+     с width: 100% / max-width: 800 масштабируется вместе с ней. */
+  width: 100%;
+  max-width: 900px;
+  margin-left: auto;
 }
 
 .block-heading {
@@ -1051,12 +1057,13 @@ img {
 }
 
 .block-image {
-  /* Картинка в статье: от 390 до 800 px по ширине, центрирована. На десктопе
-     выходит за текстовую колонку (560px) и может расширяться до 800px; на
-     мобильной растягивается на всю ширину viewport (см. media ниже). */
+  /* Картинка в статье: от 0 до 800 px по ширине, занимает всю ширину
+     колонки .article-blocks. Если колонка шире 800 — картинка упирается
+     в max-width 800 и центрируется в колонке. Если колонка уже 800 —
+     картинка сужается вместе с ней, потому что width: 100% от родителя.
+     Без min-width: на очень узких экранах картинка тоже сжимается. */
   display: block;
-  width: auto;
-  min-width: 390px;
+  width: 100%;
   max-width: 800px;
   align-self: center;
   border-radius: 24px;
@@ -1064,15 +1071,18 @@ img {
   image-rendering: auto;
 }
 
-/* На мобильной картинка выходит за колонку и занимает всю ширину
-   viewport от края до края экрана. Горизонтальный padding .stage-reader
-   скомпенсирован отрицательными margin'ами, остальной контент (текст,
-   заголовки) остаётся в колонке. */
+/* На мобильной картинка занимает всю ширину viewport от края до края
+   экрана. Сбрасываем transform-центрирование, расширяем width на
+   величину горизонтального padding родителя и сдвигаем отрицательными
+   margin'ами в обе стороны, чтобы левый край упёрся в 0, а правый — в
+   100vw. */
 @media (max-width: 799px) {
   .block-image {
-    min-width: 0;
     width: calc(100% + 2 * var(--reader-pad-x, 36px));
     max-width: none;
+    min-width: 0;
+    left: auto;
+    transform: none;
     border-radius: 0;
     margin-left: calc(-1 * var(--reader-pad-x, 36px));
     margin-right: calc(-1 * var(--reader-pad-x, 36px));
