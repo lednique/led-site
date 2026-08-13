@@ -976,29 +976,48 @@ img {
   }
 
   .board-wrap {
-    flex: 0 0 calc(100% - 80px);
-    height: calc(100% - 80px);
-    min-height: calc(100% - 80px);
-    max-height: calc(100% - 80px);
+    flex: 0 0 auto;
+    height: auto;
+    min-height: auto;
+    max-height: none;
   }
 
   .sidebar-scroll {
-    flex: 1;
-    min-height: 0;
-    height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
-    -webkit-overflow-scrolling: touch;
-    overscroll-behavior: contain;
+    overflow: visible;
+    flex: none;
+    height: auto;
+    min-height: auto;
   }
 
   .sidebar-topfade {
+    position: sticky;
+    top: 80px;
+    left: auto;
+    right: auto;
+    height: 0;
+    padding: 0;
+    background: none;
+    overflow: visible;
+    z-index: 25;
+    display: block;
+  }
+
+  .sidebar-topfade::before {
+    content: "";
     position: absolute;
-    top: 0;
     left: 0;
     right: 0;
+    top: 0;
     height: 88px;
-    z-index: 20;
+    background: linear-gradient(180deg, #000 18%, rgba(0, 0, 0, 0) 100%);
+    pointer-events: none;
+  }
+
+  .sidebar-topfade .scroll-anchor {
+    position: absolute;
+    left: 50%;
+    top: 16px;
+    transform: translateX(-50%);
   }
 
   .mobile-sheet {

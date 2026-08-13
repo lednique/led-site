@@ -47,16 +47,23 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
   }, []);
 
   useEffect(() => {
-    const el = scroller.current;
+    const el = mobile ? sidebarRef.current : scroller.current;
     if (!el) return;
-    const onScroll = () => setScrolled(el.scrollTop > 12);
+    const onScroll = () => {
+      if (!mobile) {
+        setScrolled(el.scrollTop > 12);
+        return;
+      }
+      const banner = el.querySelector(".rail-banner") as HTMLElement | null;
+      setScrolled(el.scrollTop > (banner?.offsetHeight ?? 250));
+    };
     onScroll();
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, [mobile]);
 
   useEffect(() => {
-    const root = scroller.current;
+    const root = mobile ? sidebarRef.current : scroller.current;
     const node = sentinel.current;
     if (!root || !node) return;
     const io = new IntersectionObserver(
