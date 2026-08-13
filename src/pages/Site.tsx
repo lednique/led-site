@@ -5,28 +5,27 @@ import { SiteLoader } from "../components/Loader";
 import { MenuPanel } from "../components/MenuPanel";
 import { Sidebar } from "../components/Sidebar";
 import { Stage } from "../components/Stage";
-import { MENU_PAGES } from "../defaults";
+import { MENU_PAGES, pageLabel } from "../defaults";
 import { useI18n } from "../i18n";
 import { useSite, useSiteReady } from "../store";
-import type { MenuPageKey, PageContent, Publication } from "../types";
+import type { Localized, MenuPageKey, PageContent, Publication } from "../types";
 
 const MENU_KEYS = new Set<string>(MENU_PAGES.map((p) => p.key));
 
 /** Превращаем содержимое страницы меню в объект, пригодный для ArticleView. */
-function pageAsPublication(key: MenuPageKey, content: PageContent): Publication {
-  const meta = MENU_PAGES.find((p) => p.key === key)!;
+function pageAsPublication(key: MenuPageKey, content: PageContent, label: Localized): Publication {
   return {
     id: `page-${key}`,
     createdAt: 0,
     order: 0,
-    title: meta.label,
+    title: label,
     type: "article",
     color: "#000000",
     image: "",
     url: "",
     hashtags: [],
     enEnabled: true,
-    blocks: content,
+    blocks: { en: content.en ?? [], ru: content.ru ?? [] },
   };
 }
 
@@ -41,7 +40,8 @@ export function SitePage() {
   const article = id ? data.publications.find((p) => p.id === id) : undefined;
   const menuKey = page && MENU_KEYS.has(page) ? (page as MenuPageKey) : undefined;
   const menuContent = menuKey ? data.pages[menuKey] : undefined;
-  const menuPub = menuKey && menuContent ? pageAsPublication(menuKey, menuContent) : undefined;
+  const menuPub =
+    menuKey && menuContent ? pageAsPublication(menuKey, menuContent, pageLabel(data.pages, menuKey)) : undefined;
   const stageArticle = article ?? menuPub;
   const open = Boolean(stageArticle);
 
@@ -58,6 +58,20 @@ export function SitePage() {
     <div className="page">
       <div className={`site${menuOpen ? " menu-open" : ""}`}>
         {!open && <Banner data={data.banner} variant="hero" />}
+        <nav className="desktop-menu" aria-label={t("Menu", "Меню")}>
+          {MENU_PAGES.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              className="menu-item"
+              onClick={() => navigate(`/m/${p.key}`)}
+            >
+              <span className="menu-item-text">
+                {locale === "ru" ? pageLabel(data.pages, p.key).ru : pageLabel(data.pages, p.key).en}
+              </span>
+            </button>
+          ))}
+        </nav>
         <Sidebar
           data={data}
           articleOpen={open}

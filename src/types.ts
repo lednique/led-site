@@ -50,8 +50,13 @@ export type BannerData = {
 /** Ключи страниц верхнего меню (мобильная шапка). */
 export type MenuPageKey = "about" | "commission" | "contacts";
 
-/** Редактируемое содержимое страницы — те же блоки, что и в карточках. */
-export type PageContent = { en: ArticleBlock[]; ru: ArticleBlock[] };
+/** Редактируемое содержимое страницы меню — те же блоки, что и в карточках, плюс подпись кнопки. */
+export type PageContent = {
+  en: ArticleBlock[];
+  ru: ArticleBlock[];
+  /** Название кнопки в шапке. Если нет — берём подпись из MENU_PAGES. */
+  label?: Localized;
+};
 
 export type SitePages = Record<MenuPageKey, PageContent>;
 

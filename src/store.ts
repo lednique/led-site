@@ -1,9 +1,9 @@
 import { useEffect, useSyncExternalStore } from "react";
-import { defaultSite, SITE_VERSION } from "./defaults";
+import { defaultSite, MENU_PAGES, mergePages, SITE_VERSION } from "./defaults";
 import { isLightColor } from "./lib/color";
 import { supabase } from "./lib/supabase";
 import { ensureRemoteSrc } from "./lib/upload";
-import type { BannerData, Locale, Publication, SiteData } from "./types";
+import type { ArticleBlock, BannerData, Locale, PageContent, Publication, SiteData, SitePages } from "./types";
 
 const LOCAL_KEYS = ["lednique-site-v4", "lednique-site-v3"];
 
@@ -106,7 +106,12 @@ function loadLocal(): SiteData | null {
       if (!raw) continue;
       const parsed = JSON.parse(raw) as SiteData;
       if (!parsed || !Array.isArray(parsed.publications)) continue;
-      return withOrder({ ...defaultSite, ...parsed, favicon: parsed.favicon ?? "" });
+      return withOrder({
+        ...defaultSite,
+        ...parsed,
+        favicon: parsed.favicon ?? "",
+        pages: mergePages(parsed.pages, defaultSite.pages),
+      });
     }
   } catch {
     /* ignore */
@@ -153,7 +158,7 @@ function applySettings(base: SiteData, row: SettingsRow | null): SiteData {
   const embedded = b && "favicon" in b ? b.favicon : "";
   // pages и themeColor хранятся в столбцах, а для уже развёрнутых баз — внутри
   // banner jsonb (как favicon), поэтому читаем из обоих мест.
-  const pages = row.pages ?? b?.pages ?? base.pages;
+  const pages = mergePages(row.pages ?? b?.pages, base.pages);
   const themeColor = row.theme_color ?? row.themeColor ?? b?.themeColor ?? base.themeColor;
   return {
     ...base,
@@ -162,7 +167,7 @@ function applySettings(base: SiteData, row: SettingsRow | null): SiteData {
     socials: row.socials?.length ? row.socials : base.socials,
     favicon: row.favicon || embedded || base.favicon || "",
     themeColor: themeColor ?? base.themeColor,
-    pages: pages ?? base.pages,
+    pages,
   };
 }
 
@@ -222,7 +227,13 @@ export function subscribe(fn: () => void): () => void {
 }
 
 function replaceSite(next: SiteData, cache = true) {
-  const normalized = { ...defaultSite, ...next, version: SITE_VERSION, favicon: next.favicon ?? "" };
+  const normalized = {
+    ...defaultSite,
+    ...next,
+    version: SITE_VERSION,
+    favicon: next.favicon ?? "",
+    pages: mergePages(next.pages, defaultSite.pages),
+  };
   if (signature(normalized) === signature(state) && state !== defaultSite) {
     state = normalized;
     return;
@@ -306,6 +317,22 @@ async function materializePublication(pub: Publication): Promise<Publication> {
   return { ...pub, image, blocks: { en, ru } };
 }
 
+async function materializePageContent(content: PageContent): Promise<PageContent> {
+  const uploads = new Map<string, Promise<string>>();
+  const uploadOnce = (src: string) => {
+    if (!src) return Promise.resolve(src);
+    const cached = uploads.get(src);
+    if (cached) return cached;
+    const started = ensureRemoteSrc(src, "article");
+    uploads.set(src, started);
+    return started;
+  };
+  const materializeBlocks = (blocks: ArticleBlock[]) =>
+    Promise.all(blocks.map(async (block) => (block.type === "image" ? { ...block, src: await uploadOnce(block.src) } : block)));
+  const [en, ru] = await Promise.all([materializeBlocks(content.en ?? []), materializeBlocks(content.ru ?? [])]);
+  return { ...content, en, ru };
+}
+
 async function persistSettings() {
   if (!supabase) return;
   // favicon, pages и themeColor кладём и в отдельные столбцы, и внутрь banner
@@ -357,14 +384,18 @@ export async function saveSiteSettings(): Promise<boolean> {
     setSync({ dirty: false, mode: "local" });
     return true;
   }
-  const [bannerImage, favicon, socials] = await Promise.all([
+  const [bannerImage, favicon, socials, pageEntries] = await Promise.all([
     ensureRemoteSrc(state.banner.image, "banner"),
     ensureRemoteSrc(state.favicon, "favicon"),
     Promise.all(
       state.socials.map(async (s) => ({ ...s, image: await ensureRemoteSrc(s.image, "socials") })),
     ),
+    Promise.all(
+      MENU_PAGES.map(async (p) => [p.key, await materializePageContent(state.pages[p.key])] as const),
+    ),
   ]);
-  replaceSite({ ...state, banner: { ...state.banner, image: bannerImage }, favicon, socials });
+  const pages = Object.fromEntries(pageEntries) as SitePages;
+  replaceSite({ ...state, banner: { ...state.banner, image: bannerImage }, favicon, socials, pages });
   await persistSettings();
   const ok = sync.mode !== "offline";
   if (ok) setSync({ dirty: false });
@@ -669,12 +700,9 @@ export function useThemeColor() {
     const mq = window.matchMedia(MOBILE_QUERY);
 
     const apply = () => {
-      // Чёрная полоса снизу убрана по запросу полностью:
-      // - viewport-fit=cover убран из index.html, контент не уходит под нижнюю панель,
-      // - градиенты .banner--rail::after и .page-footer убраны в styles.css,
-      // - высота страницы теперь 100dvh (а не 100svh), чтобы не оставался чёрный зазор body,
-      // - на мобиле theme-color не красим в чёрный, чтобы нижняя панель Safari/Chrome
-      //   не выглядела как прикреплённая чёрная полоска.
+      // Нижняя системная панель браузера не красится в чёрный (это выглядело
+      // как прикреплённая полоса). Градиент баннера TraceBase при этом живёт
+      // в .banner--rail::after и его нельзя отключать вместе с этой полосой.
       if (mq.matches) {
         // Мобила: чёрную полосу убираем — нижнюю панель браузера оставляем системной.
         // Раньше тут стоял цвет из панели (чёрный), который красил панель Safari в чёрный.
