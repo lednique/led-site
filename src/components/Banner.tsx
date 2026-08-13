@@ -11,6 +11,15 @@ type BannerProps = {
 
 export function Banner({ data, variant }: BannerProps) {
   const { loc } = useI18n();
+  const blank =
+    !data.image &&
+    !data.brand?.en &&
+    !data.brand?.ru &&
+    !data.title?.en &&
+    !data.title?.ru &&
+    !data.cta?.en &&
+    !data.cta?.ru;
+  if (blank) return null;
   const img = resolveSrc(data.image);
   const copy = (
     <div className="banner-copy">

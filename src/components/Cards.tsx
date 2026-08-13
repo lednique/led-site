@@ -60,6 +60,7 @@ export function CardSkeleton() {
 
 export function SocialCard({ items }: { items: SocialItem[] }) {
   const { t } = useI18n();
+  if (items.length === 0) return null;
   return (
     <div className="social-card">
       <div className="card-body">
