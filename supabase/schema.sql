@@ -26,6 +26,12 @@ create table if not exists public.site_settings (
 
 alter table public.site_settings add column if not exists favicon text not null default '';
 
+-- Страницы верхнего меню (Обо мне, Заказать работу, Контакты) и цвет статус-бара.
+-- Старовым базам достаточно повторно запустить этот файл; данные также
+-- продублированы внутри banner jsonb, поэтому работают и без миграции.
+alter table public.site_settings add column if not exists pages jsonb not null default '{}'::jsonb;
+alter table public.site_settings add column if not exists theme_color text not null default '#000000';
+
 insert into public.site_settings (id) values (1)
 on conflict (id) do nothing;
 

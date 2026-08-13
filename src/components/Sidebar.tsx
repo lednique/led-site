@@ -5,6 +5,7 @@ import { visiblePublications } from "../store";
 import type { SiteData } from "../types";
 import { Banner } from "./Banner";
 import { CardSkeleton, PublicationCard, SocialCard } from "./Cards";
+import { DotsIcon } from "./Icons";
 import { Logo } from "./Logo";
 import { NavButton } from "./NavButton";
 
@@ -14,12 +15,14 @@ type SidebarProps = {
   activeId?: string;
   onOpenArticle: (id: string) => void;
   onHome: () => void;
+  menuOpen: boolean;
+  onToggleMenu: () => void;
 };
 
 const FIRST = 20;
 const STEP = 10;
 
-export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: SidebarProps) {
+export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome, menuOpen, onToggleMenu }: SidebarProps) {
   const navigate = useNavigate();
   const { locale, loc } = useI18n();
   const sidebarRef = useRef<HTMLElement>(null);
@@ -112,6 +115,15 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
 
       <div className={`rail-banner${articleOpen ? " is-on" : ""}`}>
         <Banner data={data.banner} variant="rail" />
+        <button
+          type="button"
+          className={`menu-toggle${menuOpen ? " is-open" : ""}`}
+          onClick={onToggleMenu}
+          aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
+          aria-expanded={menuOpen}
+        >
+          <DotsIcon />
+        </button>
       </div>
 
       <div className="top-chrome">

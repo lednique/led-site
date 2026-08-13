@@ -1,10 +1,40 @@
-import type { Publication, SiteData } from "./types";
+import type {
+  ArticleBlock,
+  Localized,
+  MenuPageKey,
+  PageContent,
+  Publication,
+  SiteData,
+  SitePages,
+} from "./types";
 
 export const SITE_VERSION = 4;
 export const DEFAULT_ACCENT = "#5A5A5A";
 
-function L(en: string, ru: string) {
+function L(en: string, ru: string): Localized {
   return { en, ru };
+}
+
+function uid(prefix = "id"): string {
+  return `${prefix}-${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/** Страницы верхнего меню и их двуязычные подписи (для шапки и редактора). */
+export const MENU_PAGES: { key: MenuPageKey; label: Localized }[] = [
+  { key: "about", label: L("About me", "Обо мне") },
+  { key: "commission", label: L("Commission Request", "Заказать работу") },
+  { key: "contacts", label: L("Contacts", "Контакты") },
+];
+
+/** Стартовое содержимое страницы меню — заголовок с именем страницы. */
+function pageStarter(label: Localized): PageContent {
+  const heading = (text: string): ArticleBlock => ({ id: uid("b"), type: "heading", text });
+  return { en: [heading(label.en)], ru: [heading(label.ru)] };
+}
+
+function defaultPages(): SitePages {
+  const entries = MENU_PAGES.map((p) => [p.key, pageStarter(p.label)] as const);
+  return Object.fromEntries(entries) as SitePages;
 }
 
 export function blankPublication(): Publication {
@@ -39,6 +69,8 @@ export function blankPublication(): Publication {
 export const defaultSite: SiteData = {
   version: SITE_VERSION,
   favicon: "",
+  themeColor: "#000000",
+  pages: defaultPages(),
   banner: {
     image: "",
     brand: L("", ""),
