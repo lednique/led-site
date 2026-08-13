@@ -1,4 +1,4 @@
-import type { ChangeEvent } from "react";
+import { useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { compressImage, readFileAsText, sanitizeSvg } from "../lib/files";
 import { resolveSrc } from "../media";
 
@@ -28,10 +28,12 @@ export function ImagePick({
   label,
   value,
   onChange,
+  variant = "wide",
 }: {
   label: string;
   value: string;
   onChange: (src: string) => void;
+  variant?: "wide" | "tall" | "icon";
 }) {
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -41,10 +43,10 @@ export function ImagePick({
   }
 
   return (
-    <div className="ad-field">
+    <div className={`ad-field ad-image-field ad-image-field--${variant}`}>
       <span>{label}</span>
-      <div className="ad-upload">
-        {value && <img src={resolveSrc(value)} alt="" />}
+      <div className={`ad-upload ad-upload--${variant}${value ? " has-img" : ""}`}>
+        {value ? <img src={resolveSrc(value)} alt="" /> : <i className="ad-upload-empty" />}
         <input type="file" accept="image/*" onChange={onFile} />
       </div>
     </div>
@@ -68,11 +70,58 @@ export function SvgPick({
   }
 
   return (
-    <div className="ad-field">
+    <div className="ad-field ad-image-field ad-image-field--icon">
       <span>{label}</span>
-      <div className="ad-upload ad-upload--svg">
+      <div className="ad-upload ad-upload--svg ad-upload--icon">
         <span className="ad-svg-preview" dangerouslySetInnerHTML={{ __html: value }} />
         <input type="file" accept=".svg,image/svg+xml" onChange={onFile} />
+      </div>
+    </div>
+  );
+}
+
+export function HashtagField({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (tags: string[]) => void;
+}) {
+  const [draft, setDraft] = useState("");
+
+  function add(raw: string) {
+    const tag = raw.trim().replace(/^#/, "");
+    if (!tag || value.includes(tag)) {
+      setDraft("");
+      return;
+    }
+    onChange([...value, tag]);
+    setDraft("");
+  }
+
+  function onKey(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      add(draft);
+    }
+  }
+
+  return (
+    <div className="ad-field">
+      <span>Хештеги</span>
+      <div className="ad-tags">
+        {value.map((tag) => (
+          <button key={tag} type="button" className="ad-tag" onClick={() => onChange(value.filter((t) => t !== tag))}>
+            #{tag}
+          </button>
+        ))}
+        <input
+          className="ad-input ad-tag-input"
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={onKey}
+          placeholder="Enter"
+        />
       </div>
     </div>
   );

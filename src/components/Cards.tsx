@@ -1,7 +1,8 @@
-import { LinkIcon } from "./Icons";
+import { useI18n } from "../i18n";
 import { cardSurface, isLightColor } from "../lib/color";
 import { resolveSrc } from "../media";
 import type { Publication, SocialItem } from "../types";
+import { LinkIcon } from "./Icons";
 
 type CardProps = {
   item: Publication;
@@ -10,6 +11,7 @@ type CardProps = {
 };
 
 export function PublicationCard({ item, onOpen, isOpen }: CardProps) {
+  const { loc } = useI18n();
   const light = isLightColor(item.color);
   const isLink = item.type === "link";
 
@@ -21,8 +23,8 @@ export function PublicationCard({ item, onOpen, isOpen }: CardProps) {
       onClick={onOpen}
     >
       <div className="card-body">
-        <div className="card-title">{item.title}</div>
-        <img className="card-img" src={resolveSrc(item.image)} alt="" />
+        <div className="card-title">{loc(item.title)}</div>
+        {item.image ? <img className="card-img" src={resolveSrc(item.image)} alt="" /> : <div className="card-img card-img--empty" />}
       </div>
       <span className="card-chrome" aria-hidden />
       {isLink ? (
@@ -45,14 +47,26 @@ export function PublicationCard({ item, onOpen, isOpen }: CardProps) {
   );
 }
 
+export function CardSkeleton() {
+  return (
+    <div className="card card-skeleton" aria-hidden>
+      <div className="card-body">
+        <div className="skel skel-title" />
+        <div className="skel skel-img" />
+      </div>
+    </div>
+  );
+}
+
 export function SocialCard({ items }: { items: SocialItem[] }) {
+  const { t } = useI18n();
   return (
     <div className="social-card">
       <div className="card-body">
-        <div className="card-title">Social Networks</div>
+        <div className="card-title">{t("Socials", "Соцсети")}</div>
         <div className="social-well">
           {items.slice(0, 6).map((s) => (
-            <a key={s.id} className="social-dot" href={s.url} target="_blank" rel="noreferrer" aria-label={s.label}>
+            <a key={s.id} className="social-dot" href={s.url} target="_blank" rel="noreferrer" aria-label={s.label.en}>
               <img src={resolveSrc(s.image)} alt="" />
             </a>
           ))}
