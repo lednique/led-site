@@ -30,6 +30,9 @@ type SettingsRow = {
   socials?: SiteData["socials"];
   favicon?: string | null;
   pages?: SiteData["pages"];
+  /** Колонка theme_color в базе (supabase отдаёт snake_case). */
+  theme_color?: string | null;
+  /** Старый вариант: внутри banner jsonb. */
   themeColor?: string;
 };
 
@@ -40,6 +43,8 @@ export type SyncState = {
   mode: SyncMode;
   error: string | null;
   migrated: boolean;
+  /** Есть несохранённые правки панели (ждут кнопки «Сохранить»). */
+  dirty: boolean;
 };
 
 function loc(en: string, ru: string) {
@@ -149,7 +154,7 @@ function applySettings(base: SiteData, row: SettingsRow | null): SiteData {
   // pages и themeColor хранятся в столбцах, а для уже развёрнутых баз — внутри
   // banner jsonb (как favicon), поэтому читаем из обоих мест.
   const pages = row.pages ?? b?.pages ?? base.pages;
-  const themeColor = row.themeColor ?? b?.themeColor ?? base.themeColor;
+  const themeColor = row.theme_color ?? row.themeColor ?? b?.themeColor ?? base.themeColor;
   return {
     ...base,
     banner: bannerFromRow(row.banner, base.banner),
@@ -181,9 +186,9 @@ let sync: SyncState = {
   mode: supabase ? "live" : "local",
   error: null,
   migrated: false,
+  dirty: false,
 };
 const listeners = new Set<() => void>();
-let settingsTimer: number | undefined;
 let realtimeChannel: ReturnType<NonNullable<typeof supabase>["channel"]> | null = null;
 
 function emit() {
@@ -233,7 +238,9 @@ export function setSite(next: SiteData) {
 
 export function patchSite(partial: Partial<SiteData>) {
   replaceSite({ ...state, ...partial });
-  queuePersistSettings();
+  // Правки панели больше не сохраняются сами по себе — их публикует в базу
+  // кнопка «Сохранить» (saveSiteSettings), поэтому помечаем их как несохранённые.
+  setSync({ dirty: true });
 }
 
 export function useSite(): SiteData {
@@ -316,7 +323,10 @@ async function persistSettings() {
     socials: state.socials,
     favicon: state.favicon ?? "",
     pages: state.pages,
-    themeColor: state.themeColor,
+    // Колонка называется theme_color — supabase-js не переименовывает ключи,
+    // поэтому раньше этот апсерт всегда падал и цвет статус-бара не попадал
+    // в отдельный столбец (оставался только внутри banner jsonb).
+    theme_color: state.themeColor,
   };
   const first = await supabase.from("site_settings").upsert(payload);
   if (!first.error) {
@@ -336,11 +346,29 @@ async function persistSettings() {
   setSync({ error: null, mode: "live" });
 }
 
-function queuePersistSettings() {
-  window.clearTimeout(settingsTimer);
-  settingsTimer = window.setTimeout(() => {
-    void persistSettings();
-  }, 280);
+/**
+ * Единственная кнопка сохранения настроек сайта (баннер, кнопки, меню,
+ * фавикон, цвет статус-бара): загружает в Storage ещё не загруженные
+ * изображения и публикует все настройки в Supabase одним апсертом.
+ */
+export async function saveSiteSettings(): Promise<boolean> {
+  if (!supabase) {
+    // Без базы правки живут в localStorage — сохранять нечего.
+    setSync({ dirty: false, mode: "local" });
+    return true;
+  }
+  const [bannerImage, favicon, socials] = await Promise.all([
+    ensureRemoteSrc(state.banner.image, "banner"),
+    ensureRemoteSrc(state.favicon, "favicon"),
+    Promise.all(
+      state.socials.map(async (s) => ({ ...s, image: await ensureRemoteSrc(s.image, "socials") })),
+    ),
+  ]);
+  replaceSite({ ...state, banner: { ...state.banner, image: bannerImage }, favicon, socials });
+  await persistSettings();
+  const ok = sync.mode !== "offline";
+  if (ok) setSync({ dirty: false });
+  return ok;
 }
 
 async function persistPublication(pub: Publication) {
@@ -494,6 +522,8 @@ export async function hydrateFromSupabase() {
 
 export async function refreshFromSupabase() {
   if (!supabase || !sync.ready) return;
+  // В панели есть несохранённые правки — не затираем их данными с сервера.
+  if (sync.dirty) return;
   const { settings, pubs, error } = await fetchRemote();
   if (error) {
     setSync({ error, mode: "offline" });
@@ -519,6 +549,9 @@ function subscribeRealtime() {
     .on("postgres_changes", { event: "*", schema: "public", table: "site_settings" }, (payload) => {
       const row = (payload.new || payload.old) as SettingsRow | null;
       if (payload.eventType === "DELETE" || !row) return;
+      // Пока в панели есть несохранённые правки, они имеют приоритет над
+      // изменениями с других устройств.
+      if (sync.dirty) return;
       replaceSite(applySettings(state, row));
     })
     .on("postgres_changes", { event: "*", schema: "public", table: "publications" }, (payload) => {

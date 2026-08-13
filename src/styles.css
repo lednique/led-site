@@ -378,11 +378,10 @@ img {
   width: 170px;
   padding-top: 10px;
   border: none;
+  /* Единый радиус 36 px для всех карточек. Форму задаёт сам контейнер —
+     без clip-path и без overflow, чтобы внутренние эффекты (тени, ховер,
+     пульсация) не обрезались. Изображение внутри скруглено тем же радиусом. */
   border-radius: 36px;
-  /* Сквиркл-скругление (~60%, как у блоков в интерфейсах Apple):
-     форму задаёт clip-path, border-radius остаётся запасной формой для тени. */
-  clip-path: url(#squircle-clip);
-  overflow: hidden;
   position: relative;
   flex-shrink: 0;
   text-align: left;
@@ -436,6 +435,7 @@ img {
 .card-hover {
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(5px);
   -webkit-backdrop-filter: blur(5px);
@@ -471,6 +471,7 @@ img {
   right: 0;
   bottom: 0;
   height: 47px;
+  border-radius: 0 0 36px 36px;
   background: linear-gradient(180deg, rgba(0, 0, 0, 0) 0%, #000 100%);
   pointer-events: none;
   z-index: 3;
@@ -479,6 +480,7 @@ img {
 .card-ripple {
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   opacity: 0;
   --r: 72px;
   background: radial-gradient(
@@ -728,6 +730,7 @@ img {
 .banner--rail .banner-copy {
   position: absolute;
   inset: 0;
+  z-index: 2;
 }
 
 .banner--rail .banner-brand {
@@ -1140,8 +1143,10 @@ img {
     background-position: left top;
   }
 
-  /* Нижний градиент баннера (чёрный → прозрачный), 60px. */
-  .rail-banner::after {
+  /* Нижний градиент баннера (чёрный → прозрачный): лежит поверх изображения
+     (фон контейнера), но под текстовыми блоками — бренд, заголовок, подпись
+     и правило остаются поверх градиента. */
+  .banner--rail::after {
     content: "";
     position: absolute;
     left: 0;
@@ -1150,7 +1155,7 @@ img {
     height: 60px;
     background: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0) 100%);
     pointer-events: none;
-    z-index: 2;
+    z-index: 1;
   }
 
   /* ——— кнопка-меню сверху справа на баннере (без фона) ——— */
@@ -1364,22 +1369,36 @@ img {
     width: 100%;
   }
 
+  /* Градиент подвала прижат к нижней границе страницы (fixed) и остаётся на
+     месте, даже когда сайт уезжает вниз под верхнее меню: чёрный в самой
+     нижней точке → прозрачный вверх. Элемент лежит за пределами контейнера
+     .site (ниже его нижней границы). Языковой переключатель и © LEDNIQUE
+     переехали в верхнее меню, поэтому текст подвала на мобильной скрыт. */
+  .page-footer {
+    position: fixed;
+    bottom: 0;
+    transform: none;
+  }
+
   .page-footer p {
+    display: none;
     left: 50%;
     transform: translateX(-50%);
     width: min(390px, 100%);
-  }
-
-  /* Градиент подвала уходит под нижнюю границу страницы (не виден, но в коде);
-     языковой переключатель и © LEDNIQUE переехали в верхнее меню. */
-  .page-footer {
-    transform: translateY(100%);
   }
 }
 
 @media (min-width: 800px) {
   .site {
     min-width: 800px;
+  }
+
+  /* Подвал лежит вне .site (внутри .page), поэтому повторяем ширину и
+     центровку сайта, чтобы градиент и текст подвала не уезжали к краям. */
+  .page-footer {
+    left: 50%;
+    width: min(1400px, 100%);
+    transform: translateX(-50%);
   }
 }
 
