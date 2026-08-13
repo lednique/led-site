@@ -14,6 +14,9 @@ export default function App() {
           PWA на iOS (там бар прозрачный и контент уходит под него).
           Цвет берётся из панели управления через переменную --status-bar. */}
       <div className="status-bar-fill" aria-hidden="true" />
+      {/* Подложка под системным home indicator внизу экрана на iPhone X+.
+          Закрывает чёрную полоску, которая иначе видна поверх контента. */}
+      <div className="home-indicator-fill" aria-hidden="true" />
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<SitePage />} />
