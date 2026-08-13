@@ -650,12 +650,26 @@ function setMeta(name: string, content: string) {
   meta.content = content;
 }
 
+function removeMeta(name: string) {
+  document.head.querySelector<HTMLMetaElement>(`meta[name="${name}"]`)?.remove();
+}
+
+/** В обычном Safari theme-color становится непрозрачной подложкой тулбара. */
+function isSafariBrowser() {
+  const ua = navigator.userAgent;
+  const standalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true;
+  return !standalone && /Safari/i.test(ua) && !/(Chrome|Chromium|CriOS|FxiOS|EdgiOS|OPiOS|Android)/i.test(ua);
+}
+
 /**
  * Цвет статус-бара / панели вкладок из панели управления (вкладка «Баннер»).
  *
- * Мобильные браузеры и PWA получают цвет из настроек, десктопные окна браузера
- * остаются со сплошным чёрным — там панель вкладок красить не нужно.
- * Порог тот же, что и у мобильной вёрстки: 800px.
+ * Установленное приложение получает цвет из настроек. В Safari, открытом как
+ * сайт, theme-color намеренно не ставится: этот метатег создаёт чёрную полосу
+ * под нижней панелью кнопок браузера. Порог тот же, что и у мобильной вёрстки:
+ * 800px.
  */
 export function useThemeColor() {
   const data = useSite();
@@ -665,10 +679,18 @@ export function useThemeColor() {
     const mq = window.matchMedia(MOBILE_QUERY);
 
     const apply = () => {
-      // На десктопе всегда сплошной чёрный, на мобильной — цвет из панели.
+      // Safari использует theme-color как непрозрачный фон нижнего тулбара.
+      // Убираем метатег именно в браузерном режиме, чтобы под его кнопками
+      // оставалась штатная полупрозрачная панель, а не чёрная полоса. В PWA
+      // цвет нужен для системных зон и сохраняется.
       const color = mq.matches ? themeColor : "#000000";
-      setMeta("theme-color", color);
-      setMeta("msapplication-navbutton-color", color);
+      if (isSafariBrowser()) {
+        removeMeta("theme-color");
+        removeMeta("msapplication-navbutton-color");
+      } else {
+        setMeta("theme-color", color);
+        setMeta("msapplication-navbutton-color", color);
+      }
       // Подложка под статус-баром в iOS-PWA (см. .status-bar-fill).
       document.documentElement.style.setProperty("--status-bar", color);
       // iOS: прозрачный статус-бар пускает контент под себя, и его закрывает
