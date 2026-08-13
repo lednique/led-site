@@ -47,7 +47,7 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
   }, []);
 
   useEffect(() => {
-    const el = mobile ? sidebarRef.current : scroller.current;
+    const el = scroller.current;
     if (!el) return;
     const onScroll = () => setScrolled(el.scrollTop > 12);
     onScroll();
@@ -56,7 +56,7 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
   }, [mobile]);
 
   useEffect(() => {
-    const root = mobile ? sidebarRef.current : scroller.current;
+    const root = scroller.current;
     const node = sentinel.current;
     if (!root || !node) return;
     const io = new IntersectionObserver(
