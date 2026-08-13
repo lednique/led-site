@@ -196,6 +196,17 @@ let sync: SyncState = {
 const listeners = new Set<() => void>();
 let realtimeChannel: ReturnType<NonNullable<typeof supabase>["channel"]> | null = null;
 
+// Сохранение карточки асинхронное (особенно если сначала нужно загрузить
+// картинку). Удаление обязано дождаться уже начатого сохранения, иначе поздний
+// upsert снова создаст только что удалённую строку.
+const publicationWrites = new Map<string, Promise<void>>();
+
+// Пока удаление выполняется, focus-refresh после window.confirm и realtime
+// могут принести старую строку. Такие строки не возвращаем в локальное состояние.
+// После успешного удаления id остаётся в наборе до перезагрузки страницы — это
+// также защищает от уже начатого до удаления запроса refreshFromSupabase.
+const deletedPublicationIds = new Set<string>();
+
 function emit() {
   listeners.forEach((l) => l());
 }
@@ -412,11 +423,33 @@ async function persistPublication(pub: Publication) {
     });
   }
   const { error } = await supabase.from("publications").upsert(pubToRow(readyPub));
-  if (error) {
-    setSync({ error: error.message, mode: "offline" });
-    return;
-  }
+  if (error) throw error;
   setSync({ error: null, mode: "live" });
+}
+
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (error && typeof error === "object" && "message" in error) return String(error.message);
+  return String(error || "Неизвестная ошибка");
+}
+
+/**
+ * Записи одной карточки выполняем последовательно. Это не только сохраняет
+ * последние правки, но и даёт removePublication возможность поставить DELETE
+ * строго после уже отправленного UPSERT.
+ */
+function queuePublicationWrite(pub: Publication) {
+  deletedPublicationIds.delete(pub.id);
+  const previous = publicationWrites.get(pub.id) ?? Promise.resolve();
+  const task = previous.catch(() => undefined).then(() => persistPublication(pub));
+  publicationWrites.set(pub.id, task);
+  void task
+    .catch((error: unknown) => {
+      setSync({ error: errorMessage(error), mode: "offline" });
+    })
+    .finally(() => {
+      if (publicationWrites.get(pub.id) === task) publicationWrites.delete(pub.id);
+    });
 }
 
 export function savePublication(pub: Publication) {
@@ -433,15 +466,49 @@ export function savePublication(pub: Publication) {
       ...state,
       publications: [next, ...state.publications],
     });
-    void persistPublication(next);
+    queuePublicationWrite(next);
     return;
   }
-  void persistPublication(pub);
+  queuePublicationWrite(pub);
 }
 
-export function removePublication(id: string) {
+/**
+ * Удаляет карточку локально и в Supabase. Возвращает false и восстанавливает
+ * карточку, если база не подтвердила удаление.
+ */
+export async function removePublication(id: string): Promise<boolean> {
+  const removed = state.publications.find((p) => p.id === id);
+  deletedPublicationIds.add(id);
   replaceSite({ ...state, publications: state.publications.filter((p) => p.id !== id) });
-  if (supabase) void supabase.from("publications").delete().eq("id", id);
+
+  if (!supabase) return true;
+
+  try {
+    // Если сохранение (или загрузка картинки перед ним) уже началось, DELETE
+    // должен уйти после него. Иначе запоздалый upsert воскресит карточку.
+    await publicationWrites.get(id)?.catch(() => undefined);
+
+    const { data, error } = await supabase.from("publications").delete().eq("id", id).select("id");
+    if (error) throw error;
+
+    // При запрете DELETE через RLS PostgREST иногда отвечает без ошибки, но не
+    // меняет ни одной строки. Проверяем, что строка действительно исчезла.
+    if (!data?.some((row) => row.id === id)) {
+      const check = await supabase.from("publications").select("id").eq("id", id).maybeSingle();
+      if (check.error) throw check.error;
+      if (check.data) throw new Error("База данных не подтвердила удаление публикации");
+    }
+
+    setSync({ error: null, mode: "live" });
+    return true;
+  } catch (error) {
+    deletedPublicationIds.delete(id);
+    if (removed && !state.publications.some((p) => p.id === id)) {
+      replaceSite({ ...state, publications: [...state.publications, removed] });
+    }
+    setSync({ error: errorMessage(error), mode: "offline" });
+    return false;
+  }
 }
 
 export function movePublication(id: string, dir: -1 | 1) {
@@ -499,7 +566,7 @@ async function fetchRemote(): Promise<{ settings: SettingsRow | null; pubs: Row[
   const error = settingsRes.error?.message || pubsRes.error?.message || null;
   return {
     settings: (settingsRes.data as SettingsRow | null) ?? null,
-    pubs: (pubsRes.data as Row[] | null) ?? [],
+    pubs: ((pubsRes.data as Row[] | null) ?? []).filter((row) => !deletedPublicationIds.has(row.id)),
     error,
   };
 }
@@ -593,7 +660,7 @@ function subscribeRealtime() {
         return;
       }
       const row = payload.new as Row | null;
-      if (!row?.id) return;
+      if (!row?.id || deletedPublicationIds.has(row.id)) return;
       const pub = rowToPub(row);
       const exists = state.publications.some((p) => p.id === pub.id);
       replaceSite({
