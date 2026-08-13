@@ -609,7 +609,11 @@ export function useBrandAssets() {
   const data = useSite();
   useEffect(() => {
     const href = data.favicon || "/favicon.svg";
-    const rels = ["icon", "shortcut icon", "apple-touch-icon"];
+    // apple-touch-icon сюда не входит намеренно: иконка приложения для iOS —
+    // это статичные непрозрачные PNG из public/ (см. index.html). Фавиконка из
+    // панели управления отвечает только за вкладку браузера, а SVG/прозрачный
+    // PNG в роли иконки «На экран Домой» на iOS не работает.
+    const rels = ["icon", "shortcut icon"];
     for (const rel of rels) {
       let link = document.head.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
       if (!link) {

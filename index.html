@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- iOS «На экран Домой»: непрозрачные PNG, углы система скругляет сама. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/apple-touch-icon-167.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152.png" />
     <!-- viewport-fit=cover нужен, чтобы в PWA на iOS контент уходил под
          статус-бар: тогда его можно закрасить подложкой .status-bar-fill. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
