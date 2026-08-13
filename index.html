@@ -9,12 +9,15 @@
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
     <link rel="apple-touch-icon" sizes="167x167" href="/apple-touch-icon-167.png" />
     <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152.png" />
-    <!-- viewport-fit=cover нужен, чтобы в PWA на iOS контент уходил под
-         статус-бар: тогда его можно закрасить подложкой .status-bar-fill. -->
+    <!-- viewport-fit=cover нужен, чтобы контент уходил под системные зоны:
+         под статус-бар в PWA и под нижнюю панель Safari. Без него у нижней
+         панели браузера остаётся видимая светлая полоса. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <!-- Цвет системных зон задаётся после загрузки настроек сайта. Не задаём
-         theme-color заранее: Safari иначе рисует чёрную подложку под нижней
-         панелью своих кнопок. -->
+    <!-- Чёрный theme-color по умолчанию: Safari красит им нижнюю панель, и она
+         сливается с чёрным сайтом — сайт выглядит на весь экран. Без этого
+         тега панель светлая (системный цвет), что даёт полосу снизу. После
+         загрузки настроек JS (useThemeColor) подставит цвет из панели. -->
+    <meta name="theme-color" content="#000000" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
