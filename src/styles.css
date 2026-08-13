@@ -7,6 +7,9 @@
 :root {
   --black: #000;
   --muted: #808080;
+  /* Цвет статус-бара из панели управления (вкладка «Баннер»).
+     Подставляется в рантайме хуком useThemeColor. */
+  --status-bar: #000;
   --ease-out-back: cubic-bezier(0.01, 1.43, 0.46, 1.85);
   --link-ease: cubic-bezier(0.38, 0, 0, 1);
   --card-inset: 0px 3px 2px rgba(255, 255, 255, 0.5) inset,
@@ -34,6 +37,22 @@ body,
 ::selection {
   background: #ff089c;
   color: #fff;
+}
+
+/* ——— статус-бар PWA ———
+   В обычном браузере статус-бар красится meta-тегом theme-color. В
+   установленном PWA на iOS бар прозрачный (black-translucent), контент уходит
+   под него — поэтому его закрывает эта подложка высотой safe-area. В браузере
+   safe-area сверху равна 0, так что элемент невидим и ничего не смещает. */
+.status-bar-fill {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 0px);
+  background: var(--status-bar);
+  pointer-events: none;
+  z-index: 2000;
 }
 
 button,
@@ -1369,22 +1388,35 @@ img {
     width: 100%;
   }
 
-  /* Градиент подвала прижат к нижней границе страницы (fixed) и остаётся на
-     месте, даже когда сайт уезжает вниз под верхнее меню: чёрный в самой
-     нижней точке → прозрачный вверх. Элемент лежит за пределами контейнера
-     .site (ниже его нижней границы). Языковой переключатель и © LEDNIQUE
-     переехали в верхнее меню, поэтому текст подвала на мобильной скрыт. */
+  /* На мобильной подвал полностью скрыт: языковой переключатель и © LEDNIQUE
+     переехали в верхнее меню, а нижний градиент затемнял карточки у нижнего
+     края — он больше не нужен. */
   .page-footer {
-    position: fixed;
-    bottom: 0;
-    transform: none;
+    display: none;
+  }
+}
+
+/* Установленное PWA на телефоне: статус-бар прозрачный (iOS) и его закрывает
+   .status-bar-fill, поэтому содержимое опускаем на высоту safe-area — иначе
+   баннер и кнопка меню уедут под системные часы. */
+@media (max-width: 799px) and (display-mode: standalone) {
+  .page {
+    padding-top: env(safe-area-inset-top, 0px);
   }
 
-  .page-footer p {
-    display: none;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(390px, 100%);
+  /* .page уже занимает 100dvh вместе с отступом (border-box), поэтому сайту
+     достаточно высоты его контентной области — иначе низ уедет за экран. */
+  .site {
+    height: 100%;
+  }
+
+  .menu-panel {
+    height: calc(120px + env(safe-area-inset-top, 0px));
+    padding-top: calc(20px + env(safe-area-inset-top, 0px));
+  }
+
+  .site.menu-open {
+    transform: translateY(calc(120px + env(safe-area-inset-top, 0px)));
   }
 }
 

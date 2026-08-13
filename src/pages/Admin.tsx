@@ -179,8 +179,9 @@ export function AdminPage() {
             </div>
           </Field>
           <p className="ad-hint">
-            Окрашивает статус-бар и панель вкладок браузера (meta-тег theme-color,
-            msapplication-navbutton-color). Видно на мобильных браузерах и в PWA.
+            Окрашивает статус-бар на телефоне и в установленном PWA (meta-тег theme-color,
+            msapplication-navbutton-color, подложка safe-area на iOS). В компьютерных
+            браузерах панель вкладок остаётся чёрной.
           </p>
         </section>
         <section className="ad-banner-layout">
