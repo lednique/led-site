@@ -932,6 +932,15 @@ img {
 
   .sidebar {
     background: #000;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    scrollbar-width: none;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    display: none;
   }
 
   .sidebar-blur {
@@ -942,9 +951,57 @@ img {
     display: none;
   }
 
+  .rail-banner,
+  .banner--rail {
+    width: 100%;
+  }
+
   .rail-banner {
     height: 250px;
     opacity: 1;
+    flex-shrink: 0;
+    transition: none;
+  }
+
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    background: #000;
+  }
+
+  .topbar::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 100%;
+    height: 22px;
+    background: linear-gradient(#000, rgba(0, 0, 0, 0));
+    pointer-events: none;
+  }
+
+  .sidebar.is-scrolled .topbar {
+    background: #000;
+  }
+
+  .board-wrap {
+    flex: 0 0 auto;
+    min-height: auto;
+    height: auto;
+  }
+
+  .sidebar-scroll {
+    overflow: visible;
+    flex: none;
+    min-height: auto;
+    height: auto;
+  }
+
+  .sidebar-topfade {
+    position: sticky;
+    top: 72px;
+    z-index: 25;
   }
 
   .mobile-sheet {

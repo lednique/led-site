@@ -126,7 +126,7 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
 
           {block.type === "image" && (
             <>
-              <ImagePick label="Файл" value={block.src} onChange={(src) => update(block.id, { src })} />
+              <ImagePick label="Файл" folder="article" value={block.src} onChange={(src) => update(block.id, { src })} />
               <Field label="Alt">
                 <TextInput value={block.alt} onChange={(e) => update(block.id, { alt: e.target.value })} />
               </Field>

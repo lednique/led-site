@@ -1,7 +1,7 @@
 import { svgAt, svgHeart, svgLinkedin, svgType } from "./navSvgs";
 import type { Publication, SiteData } from "./types";
 
-export const SITE_VERSION = 3;
+export const SITE_VERSION = 4;
 export const DEFAULT_ACCENT = "#5A5A5A";
 
 function L(en: string, ru: string) {
@@ -29,6 +29,7 @@ export function blankPublication(): Publication {
 
 export const defaultSite: SiteData = {
   version: SITE_VERSION,
+  favicon: "",
   banner: {
     image: "builtin:banner",
     brand: L("FaceShop", "FaceShop"),

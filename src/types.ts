@@ -52,4 +52,5 @@ export type SiteData = {
   nav: NavItem[];
   socials: SocialItem[];
   banner: BannerData;
+  favicon: string;
 };

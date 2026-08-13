@@ -22,8 +22,10 @@ const STEP = 10;
 export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: SidebarProps) {
   const navigate = useNavigate();
   const { locale, loc } = useI18n();
+  const sidebarRef = useRef<HTMLElement>(null);
   const scroller = useRef<HTMLDivElement>(null);
   const sentinel = useRef<HTMLDivElement>(null);
+  const [mobile, setMobile] = useState(() => typeof window !== "undefined" && window.matchMedia("(max-width: 799px)").matches);
   const [scrolled, setScrolled] = useState(false);
   const [limit, setLimit] = useState(FIRST);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -37,16 +39,24 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
   }, [locale]);
 
   useEffect(() => {
-    const el = scroller.current;
+    const mq = window.matchMedia("(max-width: 799px)");
+    const apply = () => setMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
+
+  useEffect(() => {
+    const el = mobile ? sidebarRef.current : scroller.current;
     if (!el) return;
     const onScroll = () => setScrolled(el.scrollTop > 12);
     onScroll();
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [mobile]);
 
   useEffect(() => {
-    const root = scroller.current;
+    const root = mobile ? sidebarRef.current : scroller.current;
     const node = sentinel.current;
     if (!root || !node) return;
     const io = new IntersectionObserver(
@@ -62,7 +72,7 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
     );
     io.observe(node);
     return () => io.disconnect();
-  }, [hasMore, loadingMore, pubs.length]);
+  }, [hasMore, loadingMore, pubs.length, mobile]);
 
   function handleCard(id: string, type: "link" | "article", url?: string) {
     if (type === "article" && activeId === id) {
@@ -85,7 +95,7 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
   const left = pubs.filter((_, i) => i % 2 === 1);
 
   return (
-    <aside className={`sidebar${articleOpen ? " has-article" : ""}${scrolled ? " is-scrolled" : ""}`}>
+    <aside ref={sidebarRef} className={`sidebar${articleOpen ? " has-article" : ""}${scrolled ? " is-scrolled" : ""}`}>
       <div className="sidebar-blur" aria-hidden>
         <i style={{ ["--b" as string]: "36px", ["--a" as string]: "0%", ["--z" as string]: "58%" }} />
         <i style={{ ["--b" as string]: "24px", ["--a" as string]: "48%", ["--z" as string]: "72%" }} />
@@ -112,7 +122,7 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
             type="button"
             className="scroll-anchor"
             aria-label="Наверх"
-            onClick={() => scroller.current?.scrollTo({ top: 0, behavior: "smooth" })}
+            onClick={() => (mobile ? sidebarRef.current : scroller.current)?.scrollTo({ top: 0, behavior: "smooth" })}
           >
             <svg width="18" height="10" viewBox="0 0 18 10" fill="none" aria-hidden>
               <path d="M1 9L9 1L17 9" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />

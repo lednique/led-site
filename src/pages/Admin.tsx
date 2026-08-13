@@ -11,16 +11,16 @@ import {
   removePublication,
   savePublication,
   sortedPublications,
-  useHydrateSite,
   useSite,
+  useSyncState,
 } from "../store";
 import type { Locale, Localized, NavItem, Publication, SocialItem } from "../types";
 
 type Tab = "cards" | "banner" | "buttons";
 
 export function AdminPage() {
-  useHydrateSite();
   const data = useSite();
+  const sync = useSyncState();
   const [tab, setTab] = useState<Tab>("cards");
   const [authed, setAuthed] = useState(() => sessionStorage.getItem("led-admin") === "1");
   const [password, setPassword] = useState("");
@@ -86,6 +86,15 @@ export function AdminPage() {
           <h1>Панель управления</h1>
         </div>
         <div className="ad-top-actions">
+          <p className={`ad-sync ad-sync--${sync.mode}${sync.error ? " is-error" : ""}`}>
+            {sync.mode === "live" && !sync.error
+              ? sync.migrated
+                ? "Локальные данные опубликованы в базу"
+                : "Supabase · изменения сразу на всех устройствах"
+              : sync.mode === "offline"
+                ? `Нет связи с базой${sync.error ? ` · ${sync.error}` : ""}`
+                : "Только это устройство · задайте VITE_SUPABASE_URL"}
+          </p>
           <Link className="ad-btn" to="/">
             К сайту
           </Link>
@@ -108,10 +117,27 @@ export function AdminPage() {
 
       {tab === "cards" && <CardsTab />}
       {tab === "banner" && (
+        <>
+        <section className="ad-favicon-block">
+          <ImagePick
+            label="Иконка вкладки браузера"
+            variant="icon"
+            folder="favicon"
+            maxSize={256}
+            mime="image/png"
+            clearable
+            value={data.favicon}
+            onChange={(favicon) => patchSite({ favicon })}
+          />
+          <p className="ad-hint">
+            Квадратная картинка (PNG, SVG или JPG). Показывается на вкладке браузера и на телефоне у закладки.
+          </p>
+        </section>
         <section className="ad-banner-layout">
           <ImagePick
             label="Изображение баннера"
             variant="tall"
+            folder="banner"
             value={data.banner.image}
             onChange={(image) => patchSite({ banner: { ...data.banner, image } })}
           />
@@ -145,6 +171,7 @@ export function AdminPage() {
             </Field>
           </div>
         </section>
+        </>
       )}
       {tab === "buttons" && <ButtonsTab />}
     </div>
@@ -319,7 +346,7 @@ function CardForm({
       </div>
 
       <div className="ad-card-layout">
-        <ImagePick label="Изображение" variant="tall" value={pub.image} onChange={(image) => patch({ image })} />
+        <ImagePick label="Изображение" variant="tall" folder="cards" value={pub.image} onChange={(image) => patch({ image })} />
         <div className="ad-card-fields">
           <Field label="Заголовок карточки">
             <TextInput
@@ -450,6 +477,7 @@ function ButtonsTab() {
             <ImagePick
               label="Иконка / фото"
               variant="icon"
+              folder="socials"
               value={s.image}
               onChange={(image) => setSocials(data.socials.map((x, n) => (n === i ? { ...x, image } : x)))}
             />

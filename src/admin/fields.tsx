@@ -1,5 +1,6 @@
 import { useState, type ChangeEvent, type KeyboardEvent } from "react";
-import { compressImage, readFileAsText, sanitizeSvg } from "../lib/files";
+import { readFileAsText, sanitizeSvg } from "../lib/files";
+import { uploadMedia } from "../lib/upload";
 import { resolveSrc } from "../media";
 
 type FieldProps = {
@@ -29,26 +30,48 @@ export function ImagePick({
   value,
   onChange,
   variant = "wide",
+  folder = "images",
+  maxSize,
+  mime,
+  clearable,
 }: {
   label: string;
   value: string;
   onChange: (src: string) => void;
   variant?: "wide" | "tall" | "icon";
+  folder?: string;
+  maxSize?: number;
+  mime?: string;
+  clearable?: boolean;
 }) {
+  const [busy, setBusy] = useState(false);
+
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    onChange(await compressImage(file));
-    e.target.value = "";
+    setBusy(true);
+    try {
+      onChange(await uploadMedia(file, folder, { max: maxSize, mime }));
+    } catch {
+      window.alert("Не удалось загрузить изображение");
+    } finally {
+      setBusy(false);
+      e.target.value = "";
+    }
   }
 
   return (
     <div className={`ad-field ad-image-field ad-image-field--${variant}`}>
       <span>{label}</span>
-      <div className={`ad-upload ad-upload--${variant}${value ? " has-img" : ""}`}>
+      <div className={`ad-upload ad-upload--${variant}${value ? " has-img" : ""}${busy ? " is-busy" : ""}`}>
         {value ? <img src={resolveSrc(value)} alt="" /> : <i className="ad-upload-empty" />}
-        <input type="file" accept="image/*" onChange={onFile} />
+        <input type="file" accept="image/*,.ico,.svg" onChange={onFile} />
       </div>
+      {clearable && value ? (
+        <button type="button" className="ad-ghost ad-clear-img" onClick={() => onChange("")}>
+          Сбросить
+        </button>
+      ) : null}
     </div>
   );
 }

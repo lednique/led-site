@@ -3,19 +3,19 @@ import { Banner } from "../components/Banner";
 import { Sidebar } from "../components/Sidebar";
 import { Stage } from "../components/Stage";
 import { useI18n } from "../i18n";
-import { useHydrateSite, useSite } from "../store";
+import { useSite, useSiteReady } from "../store";
 
 export function SitePage() {
   const data = useSite();
+  const ready = useSiteReady();
   const { id } = useParams();
   const navigate = useNavigate();
   const { locale, setLocale, t } = useI18n();
-  useHydrateSite();
   const article = id ? data.publications.find((p) => p.id === id) : undefined;
   const open = Boolean(article);
 
   return (
-    <div className="page">
+    <div className={`page${ready ? "" : " is-loading"}`}>
       <div className="site">
         {!open && <Banner data={data.banner} variant="hero" />}
         <Sidebar

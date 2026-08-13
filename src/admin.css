@@ -34,6 +34,51 @@
 .ad-top-actions {
   display: flex;
   gap: 10px;
+  align-items: center;
+}
+
+.ad-sync {
+  max-width: 280px;
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #7dcea0;
+  text-align: right;
+  line-height: 1.35;
+}
+
+.ad-sync--local,
+.ad-sync--offline,
+.ad-sync.is-error {
+  color: #ff8aa8;
+}
+
+.ad-favicon-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 16px 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ad-favicon-block .ad-hint {
+  padding-top: 22px;
+  max-width: 420px;
+}
+
+.ad-upload.is-busy {
+  opacity: 0.55;
+}
+
+.ad-clear-img {
+  align-self: flex-start;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 10px;
 }
 
 .ad-tabs {
@@ -542,5 +587,19 @@
   .ad-split,
   .ad-grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .ad-top {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ad-sync {
+    text-align: left;
+    max-width: none;
+  }
+
+  .ad-favicon-block {
+    flex-direction: column;
   }
 }
