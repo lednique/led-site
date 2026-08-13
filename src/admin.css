@@ -65,6 +65,57 @@
   background: rgba(255, 255, 255, 0.03);
 }
 
+.ad-theme-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 22px;
+  padding: 16px 18px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ad-theme-block .ad-field {
+  flex: 1;
+  min-width: 200px;
+}
+
+.ad-theme-block .ad-color {
+  max-width: 360px;
+}
+
+.ad-theme-block .ad-hint {
+  padding-top: 22px;
+  max-width: 420px;
+}
+
+.ad-menu-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ad-menu-page {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 24px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ad-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ad-menu-head h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
 .ad-favicon-block .ad-hint {
   padding-top: 22px;
   max-width: 420px;

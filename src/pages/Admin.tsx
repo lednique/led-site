@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BlockEditor } from "../admin/BlockEditor";
 import { Field, HashtagField, ImagePick, SvgPick, TextArea, TextInput } from "../admin/fields";
-import { DEFAULT_ACCENT } from "../defaults";
+import { DEFAULT_ACCENT, MENU_PAGES } from "../defaults";
 import { cardSurface, uid } from "../lib/color";
 import { alignPublicationBlocks, copyBlocks, mirrorText, syncBlocks } from "../lib/mirror";
 import { resolveSrc } from "../media";
@@ -15,9 +15,9 @@ import {
   useSite,
   useSyncState,
 } from "../store";
-import type { ArticleBlock, Locale, Localized, NavItem, Publication, SocialItem } from "../types";
+import type { ArticleBlock, Locale, Localized, MenuPageKey, NavItem, Publication, SocialItem } from "../types";
 
-type Tab = "cards" | "banner" | "buttons";
+type Tab = "cards" | "banner" | "buttons" | "menu";
 
 export function AdminPage() {
   const data = useSite();
@@ -108,6 +108,7 @@ export function AdminPage() {
             ["cards", "Карточки"],
             ["banner", "Баннер"],
             ["buttons", "Кнопки"],
+            ["menu", "Меню"],
           ] as const
         ).map(([id, label]) => (
           <button key={id} type="button" className={tab === id ? "is-on" : ""} onClick={() => setTab(id)}>
@@ -132,6 +133,27 @@ export function AdminPage() {
           />
           <p className="ad-hint">
             Квадратная картинка (PNG, SVG или JPG). Показывается на вкладке браузера и на телефоне у закладки.
+          </p>
+        </section>
+        <section className="ad-theme-block">
+          <Field label="Цвет статус-бара / панели вкладок">
+            <div className="ad-color">
+              <input
+                type="color"
+                value={data.themeColor}
+                onChange={(e) => patchSite({ themeColor: e.target.value })}
+              />
+              <TextInput
+                value={data.themeColor}
+                onChange={(e) => patchSite({ themeColor: e.target.value })}
+                placeholder="#000000"
+              />
+              <span className="ad-color-swatch" style={{ background: data.themeColor }} />
+            </div>
+          </Field>
+          <p className="ad-hint">
+            Окрашивает статус-бар и панель вкладок браузера (meta-тег theme-color,
+            msapplication-navbutton-color). Видно на мобильных браузерах и в PWA.
           </p>
         </section>
         <section className="ad-banner-layout">
@@ -175,6 +197,7 @@ export function AdminPage() {
         </>
       )}
       {tab === "buttons" && <ButtonsTab />}
+      {tab === "menu" && <MenuTab />}
     </div>
   );
 }
@@ -542,3 +565,54 @@ function ButtonsTab() {
     </div>
   );
 }
+
+function MenuTab() {
+  return (
+    <div className="ad-menu-pages">
+      <p className="ad-hint">
+        Страницы верхнего меню в мобильной шапке. Контент редактируется теми же
+        блоками, что и карточки; структура и картинки общие для обеих языковых
+        версий, текст копируется, пока его не перевели.
+      </p>
+      {MENU_PAGES.map((p) => (
+        <MenuPageEditor key={p.key} pageKey={p.key} />
+      ))}
+    </div>
+  );
+}
+
+function MenuPageEditor({ pageKey }: { pageKey: MenuPageKey }) {
+  const data = useSite();
+  const [lang, setLang] = useState<Locale>("en");
+  const meta = MENU_PAGES.find((p) => p.key === pageKey)!;
+  const content = data.pages[pageKey];
+
+  function patchBlocks(next: ArticleBlock[]) {
+    const other = lang === "en" ? "ru" : "en";
+    const mirrored = syncBlocks(content[lang], next, content[other], lang);
+    patchSite({
+      pages: {
+        ...data.pages,
+        [pageKey]: lang === "en" ? { en: next, ru: mirrored } : { ru: next, en: mirrored },
+      },
+    });
+  }
+
+  return (
+    <section className="ad-menu-page">
+      <div className="ad-menu-head">
+        <h3>{lang === "ru" ? meta.label.ru : meta.label.en}</h3>
+        <div className="ad-type">
+          <button type="button" className={lang === "en" ? "is-on" : ""} onClick={() => setLang("en")}>
+            EN
+          </button>
+          <button type="button" className={lang === "ru" ? "is-on" : ""} onClick={() => setLang("ru")}>
+            RU
+          </button>
+        </div>
+      </div>
+      <BlockEditor blocks={content[lang]} onChange={patchBlocks} />
+    </section>
+  );
+}
+

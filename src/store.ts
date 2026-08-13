@@ -1,5 +1,6 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { defaultSite, SITE_VERSION } from "./defaults";
+import { isLightColor } from "./lib/color";
 import { supabase } from "./lib/supabase";
 import { ensureRemoteSrc } from "./lib/upload";
 import type { BannerData, Locale, Publication, SiteData } from "./types";
@@ -24,10 +25,12 @@ type Row = {
 
 type SettingsRow = {
   id: number;
-  banner?: BannerData & { favicon?: string };
+  banner?: BannerData & { favicon?: string; pages?: SiteData["pages"]; themeColor?: string };
   nav?: SiteData["nav"];
   socials?: SiteData["socials"];
   favicon?: string | null;
+  pages?: SiteData["pages"];
+  themeColor?: string;
 };
 
 export type SyncMode = "live" | "local" | "offline";
@@ -141,19 +144,28 @@ function bannerFromRow(raw: SettingsRow["banner"] | undefined, fallback: BannerD
 
 function applySettings(base: SiteData, row: SettingsRow | null): SiteData {
   if (!row) return base;
-  const embedded = row.banner && "favicon" in row.banner ? row.banner.favicon : "";
+  const b = row.banner;
+  const embedded = b && "favicon" in b ? b.favicon : "";
+  // pages и themeColor хранятся в столбцах, а для уже развёрнутых баз — внутри
+  // banner jsonb (как favicon), поэтому читаем из обоих мест.
+  const pages = row.pages ?? b?.pages ?? base.pages;
+  const themeColor = row.themeColor ?? b?.themeColor ?? base.themeColor;
   return {
     ...base,
     banner: bannerFromRow(row.banner, base.banner),
     nav: row.nav?.length ? row.nav : base.nav,
     socials: row.socials?.length ? row.socials : base.socials,
     favicon: row.favicon || embedded || base.favicon || "",
+    themeColor: themeColor ?? base.themeColor,
+    pages: pages ?? base.pages,
   };
 }
 
 function signature(data: SiteData): string {
   return JSON.stringify({
     favicon: data.favicon,
+    themeColor: data.themeColor,
+    pages: data.pages,
     banner: data.banner,
     nav: data.nav,
     socials: data.socials,
@@ -289,13 +301,22 @@ async function materializePublication(pub: Publication): Promise<Publication> {
 
 async function persistSettings() {
   if (!supabase) return;
-  const banner = { ...state.banner, ...(state.favicon ? { favicon: state.favicon } : {}) };
+  // favicon, pages и themeColor кладём и в отдельные столбцы, и внутрь banner
+  // jsonb — так данные доживут до повторного запуска schema.sql на старой базе.
+  const banner = {
+    ...state.banner,
+    ...(state.favicon ? { favicon: state.favicon } : {}),
+    pages: state.pages,
+    themeColor: state.themeColor,
+  };
   const payload = {
     id: 1,
     banner,
     nav: state.nav,
     socials: state.socials,
     favicon: state.favicon ?? "",
+    pages: state.pages,
+    themeColor: state.themeColor,
   };
   const first = await supabase.from("site_settings").upsert(payload);
   if (!first.error) {
@@ -343,12 +364,8 @@ export function savePublication(pub: Publication) {
   const exists = state.publications.some((p) => p.id === pub.id);
   if (exists) {
     replaceSite({
+      ...state,
       publications: state.publications.map((p) => (p.id === pub.id ? pub : p)),
-      banner: state.banner,
-      nav: state.nav,
-      socials: state.socials,
-      favicon: state.favicon,
-      version: SITE_VERSION,
     });
   } else {
     const min = state.publications.reduce((m, p) => Math.min(m, p.order ?? 0), 0);
@@ -574,4 +591,34 @@ export function useBrandAssets() {
       else link.removeAttribute("type");
     }
   }, [data.favicon]);
+}
+
+export function useThemeColor() {
+  const data = useSite();
+  useEffect(() => {
+    const color = (data.themeColor || "#000000").trim() || "#000000";
+    const metas: [string, string][] = [
+      ["theme-color", color],
+      ["msapplication-navbutton-color", color],
+    ];
+    for (const [name, content] of metas) {
+      let meta = document.head.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
+      if (!meta) {
+        meta = document.createElement("meta");
+        meta.name = name;
+        document.head.appendChild(meta);
+      }
+      meta.content = content;
+    }
+    // iOS Safari: стиль статус-бара. «black» даёт тёмную панель под цвет сайта.
+    let ios = document.head.querySelector<HTMLMetaElement>(
+      `meta[name="apple-mobile-web-app-status-bar-style"]`,
+    );
+    if (!ios) {
+      ios = document.createElement("meta");
+      ios.name = "apple-mobile-web-app-status-bar-style";
+      document.head.appendChild(ios);
+    }
+    ios.content = isLightColor(color) ? "default" : "black";
+  }, [data.themeColor]);
 }

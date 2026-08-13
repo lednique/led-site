@@ -47,6 +47,14 @@ export type BannerData = {
   url: string;
 };
 
+/** Ключи страниц верхнего меню (мобильная шапка). */
+export type MenuPageKey = "about" | "commission" | "contacts";
+
+/** Редактируемое содержимое страницы — те же блоки, что и в карточках. */
+export type PageContent = { en: ArticleBlock[]; ru: ArticleBlock[] };
+
+export type SitePages = Record<MenuPageKey, PageContent>;
+
 export type SiteData = {
   version: number;
   publications: Publication[];
@@ -54,4 +62,8 @@ export type SiteData = {
   socials: SocialItem[];
   banner: BannerData;
   favicon: string;
+  /** Цвет статус-бара / панели вкладок браузера (theme-color). */
+  themeColor: string;
+  /** Страницы верхнего меню: Обо мне, Заказать работу, Контакты. */
+  pages: SitePages;
 };

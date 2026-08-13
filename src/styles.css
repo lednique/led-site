@@ -286,11 +286,18 @@ img {
   }
 }
 
-.nav-btn:hover .nav-btn-pill,
 .nav-btn:focus-visible .nav-btn-pill {
   width: 52px;
   height: 36px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+}
+
+@media (hover: hover) {
+  .nav-btn:hover .nav-btn-pill {
+    width: 52px;
+    height: 36px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  }
 }
 
 .nav-btn.is-active .nav-btn-pill {
@@ -372,6 +379,9 @@ img {
   padding-top: 10px;
   border: none;
   border-radius: 36px;
+  /* Сквиркл-скругление (~60%, как у блоков в интерфейсах Apple):
+     форму задаёт clip-path, border-radius остаётся запасной формой для тени. */
+  clip-path: url(#squircle-clip);
   overflow: hidden;
   position: relative;
   flex-shrink: 0;
@@ -437,10 +447,15 @@ img {
   z-index: 4;
 }
 
-.card:hover .card-hover,
 .card:focus-visible .card-hover,
 .card.is-open .card-hover {
   opacity: 1;
+}
+
+@media (hover: hover) {
+  .card:hover .card-hover {
+    opacity: 1;
+  }
 }
 
 .card-hover span {
@@ -489,10 +504,16 @@ img {
   z-index: 4;
 }
 
-.card--link:hover .card-ripple,
 .card--link:focus-visible .card-ripple {
   opacity: 1;
   --r: 380px;
+}
+
+@media (hover: hover) {
+  .card--link:hover .card-ripple {
+    opacity: 1;
+    --r: 380px;
+  }
 }
 
 .card-link-btn {
@@ -514,10 +535,12 @@ img {
   height: 32px;
 }
 
-.card--link:hover .card-link-btn .nav-btn-pill {
-  width: 52px;
-  height: 36px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+@media (hover: hover) {
+  .card--link:hover .card-link-btn .nav-btn-pill {
+    width: 52px;
+    height: 36px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  }
 }
 
 .social-card {
@@ -555,8 +578,10 @@ img {
   transition: transform 150ms var(--ease-out-back);
 }
 
-.social-dot:hover {
-  transform: scale(1.08);
+@media (hover: hover) {
+  .social-dot:hover {
+    transform: scale(1.08);
+  }
 }
 
 .social-dot img {
@@ -582,9 +607,12 @@ img {
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
-  height: 88px;
-  background: linear-gradient(180deg, #000 18%, rgba(0, 0, 0, 0) 100%);
+  /* Поднимаем градиент к блоку с логотипом (в нижнюю подложку шапки, не
+     перекрывая ряд навигации) и убираем сплошную чёрную полосу: плавный
+     переход от непрозрачного чёрного под шапкой к прозрачному. */
+  top: -16px;
+  height: 104px;
+  background: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0) 100%);
   pointer-events: none;
 }
 
@@ -610,8 +638,8 @@ img {
   left: 0;
   right: 0;
   bottom: 0;
-  height: 140px;
-  background: linear-gradient(0deg, #000 30%, rgba(0, 0, 0, 0) 100%);
+  height: 170px;
+  background: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0) 100%);
   pointer-events: none;
   z-index: 20;
 }
@@ -637,8 +665,10 @@ img {
   padding: 0;
 }
 
-.lang-switch:hover {
-  color: #fff;
+@media (hover: hover) {
+  .lang-switch:hover {
+    color: #fff;
+  }
 }
 
 .lang-dot {
@@ -907,9 +937,11 @@ img {
   transition: transform 150ms var(--ease-out-back), background 150ms var(--ease-out-back);
 }
 
-.article-link:hover {
-  transform: scale(1.03);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+@media (hover: hover) {
+  .article-link:hover {
+    transform: scale(1.03);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  }
 }
 
 .article-link--ghost {
@@ -917,9 +949,11 @@ img {
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.32);
 }
 
-.article-link--ghost:hover {
-  background: rgba(255, 255, 255, 0.1);
-  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+@media (hover: hover) {
+  .article-link--ghost:hover {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  }
 }
 
 .article-link svg {
@@ -997,9 +1031,11 @@ img {
   transition: transform 150ms var(--ease-out-back), background 150ms var(--ease-out-back);
 }
 
-.submit-btn:hover {
-  transform: scale(1.03);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+@media (hover: hover) {
+  .submit-btn:hover {
+    transform: scale(1.03);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  }
 }
 
 .form-thanks {
@@ -1009,6 +1045,72 @@ img {
 
 .mobile-sheet {
   display: none;
+}
+
+/* ——— верхнее меню (только мобильная шапка) ——— */
+
+.menu-toggle,
+.menu-panel {
+  display: none;
+}
+
+/* ——— сенсорные экраны: эффект «hover» срабатывает только в момент нажатия ——— */
+@media (hover: none) {
+  .nav-btn:active .nav-btn-pill {
+    width: 52px;
+    height: 36px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  }
+
+  .card:active .card-hover {
+    opacity: 1;
+  }
+
+  .card--link:active .card-ripple {
+    opacity: 1;
+    --r: 380px;
+  }
+
+  .card--link:active .card-link-btn .nav-btn-pill {
+    width: 52px;
+    height: 36px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  }
+
+  .social-dot:active {
+    transform: scale(1.08);
+  }
+
+  .lang-switch:active {
+    color: #fff;
+  }
+
+  .article-link:active {
+    transform: scale(1.03);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  }
+
+  .article-link--ghost:active {
+    background: rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.6);
+  }
+
+  .submit-btn:active {
+    transform: scale(1.03);
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  }
+
+  .menu-item:active {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  }
+
+  .menu-toggle:active {
+    opacity: 0.6;
+  }
+
+  .scroll-anchor:active {
+    opacity: 1;
+  }
 }
 
 @media (max-width: 799px) {
@@ -1022,12 +1124,150 @@ img {
   }
 
   .site {
-    width: 390px;
+    width: 100%;
     max-width: 100%;
   }
 
   .banner--hero {
     display: none;
+  }
+
+  /* Баннер растянут от левого до правого края, изображение выровнено
+     от верхнего угла контейнера (высота остаётся 250px). */
+  .banner--rail {
+    width: 100%;
+    background-size: cover;
+    background-position: left top;
+  }
+
+  /* Нижний градиент баннера (чёрный → прозрачный), 60px. */
+  .rail-banner::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 60px;
+    background: linear-gradient(0deg, #000 0%, rgba(0, 0, 0, 0) 100%);
+    pointer-events: none;
+    z-index: 2;
+  }
+
+  /* ——— кнопка-меню сверху справа на баннере (без фона) ——— */
+  .menu-toggle {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    z-index: 6;
+    width: 40px;
+    height: 40px;
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    padding: 0;
+    opacity: 0.9;
+    transition: opacity 150ms ease, transform 200ms var(--link-ease);
+  }
+
+  .menu-toggle svg {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.6));
+  }
+
+  .menu-toggle.is-open {
+    transform: rotate(90deg);
+  }
+
+  /* Открытое меню сдвигает страницу на 120px вниз. */
+  .site {
+    transition: transform 300ms var(--link-ease);
+  }
+
+  .site.menu-open {
+    transform: translateY(120px);
+  }
+
+  .menu-panel {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 120px;
+    z-index: 50;
+    background: #000;
+    padding: 20px 15px;
+    overflow: hidden;
+    transform: translateY(-100%);
+    transition: transform 300ms var(--link-ease);
+  }
+
+  .menu-panel.is-open {
+    transform: translateY(0);
+  }
+
+  .menu-items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .menu-item {
+    position: relative;
+    overflow: hidden;
+    border: none;
+    cursor: pointer;
+    color: #fff;
+    font: inherit;
+    padding: 10px 15px;
+    border-radius: 10000px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%);
+    box-shadow:
+      0px 3px 6px rgba(0, 0, 0, 0.2),
+      1px 0px 2px rgba(0, 0, 0, 0.3),
+      -1px 0px 2px rgba(0, 0, 0, 0.3);
+    transition: background 150ms var(--ease-out-back);
+  }
+
+  .menu-item::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    pointer-events: none;
+    box-shadow:
+      0px -3px 1px rgba(255, 255, 255, 0.15) inset,
+      0px 2px 2px #fff inset;
+    mix-blend-mode: plus-lighter;
+  }
+
+  @media (hover: hover) {
+    .menu-item:hover {
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+    }
+  }
+
+  .menu-foot {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    color: #808080;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .menu-foot .lang-switch {
+    color: inherit;
   }
 
   .sidebar {
@@ -1128,6 +1368,12 @@ img {
     left: 50%;
     transform: translateX(-50%);
     width: min(390px, 100%);
+  }
+
+  /* Градиент подвала уходит под нижнюю границу страницы (не виден, но в коде);
+     языковой переключатель и © LEDNIQUE переехали в верхнее меню. */
+  .page-footer {
+    transform: translateY(100%);
   }
 }
 
