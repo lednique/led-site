@@ -351,6 +351,7 @@ img {
 .logo:focus-visible,
 .social-dot:focus-visible,
 .submit-btn:focus-visible,
+.menu-item:focus-visible,
 .scroll-anchor:focus-visible {
   outline: 1px solid rgba(255, 255, 255, 0.7);
   outline-offset: 2px;
@@ -1097,8 +1098,50 @@ img {
 /* ——— верхнее меню (только мобильная шапка) ——— */
 
 .menu-toggle,
-.menu-panel {
+.menu-panel,
+.desktop-menu {
   display: none;
+}
+
+/* Те же кнопки, что в мобильном меню: визуал общий, на десктопе
+   просто лежат в правом верхнем углу сайта. */
+.menu-item {
+  position: relative;
+  overflow: hidden;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font: inherit;
+  padding: 10px 15px;
+  border-radius: 10000px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%);
+  box-shadow:
+    0px 3px 6px rgba(0, 0, 0, 0.2),
+    1px 0px 2px rgba(0, 0, 0, 0.3),
+    -1px 0px 2px rgba(0, 0, 0, 0.3);
+  transition: background 150ms var(--ease-out-back);
+}
+
+.menu-item::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    0px -3px 1px rgba(255, 255, 255, 0.15) inset,
+    0px 2px 2px #fff inset;
+  mix-blend-mode: plus-lighter;
+}
+
+@media (hover: hover) {
+  .menu-item:hover {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  }
 }
 
 /* ——— сенсорные экраны: эффект «hover» срабатывает только в момент нажатия ——— */
@@ -1276,45 +1319,6 @@ img {
     gap: 8px;
   }
 
-  .menu-item {
-    position: relative;
-    overflow: hidden;
-    border: none;
-    cursor: pointer;
-    color: #fff;
-    font: inherit;
-    padding: 10px 15px;
-    border-radius: 10000px;
-    font-size: 12px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    white-space: nowrap;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%);
-    box-shadow:
-      0px 3px 6px rgba(0, 0, 0, 0.2),
-      1px 0px 2px rgba(0, 0, 0, 0.3),
-      -1px 0px 2px rgba(0, 0, 0, 0.3);
-    transition: background 150ms var(--ease-out-back);
-  }
-
-  .menu-item::after {
-    content: "";
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    box-shadow:
-      0px -3px 1px rgba(255, 255, 255, 0.15) inset,
-      0px 2px 2px #fff inset;
-    mix-blend-mode: plus-lighter;
-  }
-
-  @media (hover: hover) {
-    .menu-item:hover {
-      background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
-    }
-  }
-
   .menu-foot {
     display: flex;
     align-items: center;
@@ -1472,6 +1476,24 @@ img {
 @media (min-width: 800px) {
   .site {
     min-width: 800px;
+  }
+
+  /* Те же кнопки, что в мобильном меню: правый верх сайта (max 1400px),
+     20px от верхней и правой границ контейнера. */
+  .desktop-menu {
+    display: flex;
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    z-index: 40;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  /* Статья не заезжает под ряд кнопок. */
+  .stage-reader {
+    padding-top: 72px;
   }
 
   /* Подвал лежит вне .site (внутри .page), поэтому повторяем ширину и

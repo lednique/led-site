@@ -58,6 +58,18 @@ export function SitePage() {
     <div className="page">
       <div className={`site${menuOpen ? " menu-open" : ""}`}>
         {!open && <Banner data={data.banner} variant="hero" />}
+        <nav className="desktop-menu" aria-label={t("Menu", "Меню")}>
+          {MENU_PAGES.map((p) => (
+            <button
+              key={p.key}
+              type="button"
+              className="menu-item"
+              onClick={() => navigate(`/m/${p.key}`)}
+            >
+              <span className="menu-item-text">{locale === "ru" ? p.label.ru : p.label.en}</span>
+            </button>
+          ))}
+        </nav>
         <Sidebar
           data={data}
           articleOpen={open}
