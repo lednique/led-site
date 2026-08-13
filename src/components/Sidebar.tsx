@@ -121,9 +121,6 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
           ))}
         </div>
         <Logo onClick={onHome} />
-      </header>
-
-      <div className="board-wrap">
         <div className={`sidebar-topfade${scrolled ? " is-on" : ""}`}>
           <button
             type="button"
@@ -136,7 +133,9 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
             </svg>
           </button>
         </div>
+      </header>
 
+      <div className="board-wrap">
         <div className="sidebar-scroll" ref={scroller}>
           <div className="board">
             <div className="col">
