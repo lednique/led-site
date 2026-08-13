@@ -651,13 +651,15 @@ function setMeta(name: string, content: string) {
 }
 
 /**
- * Цвет статус-бара / панели вкладок из панели управления (вкладка «Баннер»).
+ * Цвет статус-бара / панели вкладок.
  *
- * На телефоне Safari красит этим цветом свою нижнюю панель, поэтому она
- * сливается с сайтом, а не остаётся светлой системной полосой (страница
- * при этом занимает 100svh — ровно видимую область, см. styles.css). В PWA
- * цвет используется для статус-бара и подложки .status-bar-fill. Порог тот же,
- * что и у мобильной вёрстки: 800px.
+ * Раньше на мобиле Safari красился в цвет из панели управления (чёрный),
+ * чтобы сливаться с сайтом — это выглядело как чёрная полоса, прикреплённая
+ * снизу. По запросу заказчика чёрную полосу убираем совсем:
+ * - viewport-fit=cover убран из index.html, контент больше не уходит под
+ *   нижнюю панель браузера;
+ * - theme-color на мобиле не ставим в чёрный, оставляем системный;
+ * - apple статус-бар делаем default, без подложки.
  */
 export function useThemeColor() {
   const data = useSite();
@@ -667,20 +669,29 @@ export function useThemeColor() {
     const mq = window.matchMedia(MOBILE_QUERY);
 
     const apply = () => {
-      // На мобильном — цвет из панели управления (нижняя панель Safari и
-      // системные зоны PWA). На компьютерах панель вкладок оставляем чёрной.
-      const color = mq.matches ? themeColor : "#000000";
-      setMeta("theme-color", color);
-      setMeta("msapplication-navbutton-color", color);
-      // Подложка под статус-баром в iOS-PWA (см. .status-bar-fill).
-      document.documentElement.style.setProperty("--status-bar", color);
-      // iOS: прозрачный статус-бар пускает контент под себя, и его закрывает
-      // наша подложка нужного цвета. Для светлых цветов белые системные
-      // надписи были бы нечитаемы, поэтому оставляем системный светлый бар.
-      setMeta(
-        "apple-mobile-web-app-status-bar-style",
-        isLightColor(color) ? "default" : "black-translucent",
-      );
+      // Чёрная полоса снизу убрана по запросу полностью:
+      // - viewport-fit=cover убран из index.html, контент не уходит под нижнюю панель,
+      // - градиенты .banner--rail::after и .page-footer убраны в styles.css,
+      // - высота страницы теперь 100dvh (а не 100svh), чтобы не оставался чёрный зазор body,
+      // - на мобиле theme-color не красим в чёрный, чтобы нижняя панель Safari/Chrome
+      //   не выглядела как прикреплённая чёрная полоска.
+      if (mq.matches) {
+        // Мобила: чёрную полосу убираем — нижнюю панель браузера оставляем системной.
+        // Раньше тут стоял цвет из панели (чёрный), который красил панель Safari в чёрный.
+        setMeta("theme-color", "#ffffff");
+        setMeta("msapplication-navbutton-color", "#ffffff");
+        document.documentElement.style.setProperty("--status-bar", "transparent");
+        setMeta("apple-mobile-web-app-status-bar-style", "default");
+      } else {
+        const color = "#000000";
+        setMeta("theme-color", color);
+        setMeta("msapplication-navbutton-color", color);
+        document.documentElement.style.setProperty("--status-bar", color);
+        setMeta(
+          "apple-mobile-web-app-status-bar-style",
+          isLightColor(themeColor) ? "default" : "black-translucent",
+        );
+      }
     };
 
     apply();
