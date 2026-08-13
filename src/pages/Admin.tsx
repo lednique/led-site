@@ -1,25 +1,82 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BlockEditor } from "../admin/BlockEditor";
-import { Field, ImagePick, SvgPick, TextArea, TextInput } from "../admin/fields";
+import { Field, HashtagField, ImagePick, SvgPick, TextArea, TextInput } from "../admin/fields";
+import { DEFAULT_ACCENT } from "../defaults";
 import { cardSurface, uid } from "../lib/color";
 import { resolveSrc } from "../media";
 import {
   movePublication,
   patchSite,
   removePublication,
-  resetSite,
   savePublication,
   sortedPublications,
+  useHydrateSite,
   useSite,
 } from "../store";
-import type { NavItem, Publication, SocialItem } from "../types";
+import type { Locale, Localized, NavItem, Publication, SocialItem } from "../types";
 
 type Tab = "cards" | "banner" | "buttons";
 
 export function AdminPage() {
+  useHydrateSite();
   const data = useSite();
   const [tab, setTab] = useState<Tab>("cards");
+  const [authed, setAuthed] = useState(() => sessionStorage.getItem("led-admin") === "1");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  async function login(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    try {
+      const res = await fetch("/api/admin-login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password }),
+      });
+      if (res.ok) {
+        sessionStorage.setItem("led-admin", "1");
+        setAuthed(true);
+        return;
+      }
+      if (res.status === 404) {
+        const local = import.meta.env.VITE_ADMIN_PASSWORD as string | undefined;
+        if (local && password === local) {
+          sessionStorage.setItem("led-admin", "1");
+          setAuthed(true);
+          return;
+        }
+      }
+      setError("Неверный пароль");
+    } catch {
+      const local = import.meta.env.VITE_ADMIN_PASSWORD as string | undefined;
+      if (local && password === local) {
+        sessionStorage.setItem("led-admin", "1");
+        setAuthed(true);
+        return;
+      }
+      setError("Нет связи с сервером. Для локальной работы задайте VITE_ADMIN_PASSWORD.");
+    }
+  }
+
+  if (!authed) {
+    return (
+      <div className="admin admin-gate">
+        <form className="ad-editor" onSubmit={login}>
+          <p className="ad-kicker">LEDNIQUE</p>
+          <h1>Панель</h1>
+          <Field label="Пароль">
+            <TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+          </Field>
+          {error && <p className="ad-hint">{error}</p>}
+          <button className="ad-btn" type="submit">
+            Войти
+          </button>
+        </form>
+      </div>
+    );
+  }
 
   return (
     <div className="admin">
@@ -29,9 +86,6 @@ export function AdminPage() {
           <h1>Панель управления</h1>
         </div>
         <div className="ad-top-actions">
-          <button type="button" className="ad-ghost" onClick={() => resetSite()}>
-            Сбросить
-          </button>
           <Link className="ad-btn" to="/">
             К сайту
           </Link>
@@ -54,40 +108,66 @@ export function AdminPage() {
 
       {tab === "cards" && <CardsTab />}
       {tab === "banner" && (
-        <section className="ad-grid">
+        <section className="ad-banner-layout">
           <ImagePick
             label="Изображение баннера"
+            variant="tall"
             value={data.banner.image}
             onChange={(image) => patchSite({ banner: { ...data.banner, image } })}
           />
-          <Field label="FaceShop / бренд">
-            <TextInput
+          <div className="ad-i18n-grid">
+            <div className="ad-i18n-head">
+              <span />
+              <span>English</span>
+              <span>Русский</span>
+            </div>
+            <LocalePair
+              label="FaceShop / бренд"
               value={data.banner.brand}
-              onChange={(e) => patchSite({ banner: { ...data.banner, brand: e.target.value } })}
+              onChange={(brand) => patchSite({ banner: { ...data.banner, brand } })}
             />
-          </Field>
-          <Field label="3D FACE CHART COLLECTION">
-            <TextArea
-              rows={3}
+            <LocalePair
+              label="Заголовок"
+              area
               value={data.banner.title}
-              onChange={(e) => patchSite({ banner: { ...data.banner, title: e.target.value } })}
+              onChange={(title) => patchSite({ banner: { ...data.banner, title } })}
             />
-          </Field>
-          <Field label="Подпись (click to learn more)">
-            <TextInput
+            <LocalePair
+              label="Подпись"
               value={data.banner.cta}
-              onChange={(e) => patchSite({ banner: { ...data.banner, cta: e.target.value } })}
+              onChange={(cta) => patchSite({ banner: { ...data.banner, cta } })}
             />
-          </Field>
-          <Field label="Ссылка баннера">
-            <TextInput
-              value={data.banner.url}
-              onChange={(e) => patchSite({ banner: { ...data.banner, url: e.target.value } })}
-            />
-          </Field>
+            <Field label="Ссылка баннера">
+              <TextInput
+                value={data.banner.url}
+                onChange={(e) => patchSite({ banner: { ...data.banner, url: e.target.value } })}
+              />
+            </Field>
+          </div>
         </section>
       )}
       {tab === "buttons" && <ButtonsTab />}
+    </div>
+  );
+}
+
+function LocalePair({
+  label,
+  value,
+  onChange,
+  area,
+}: {
+  label: string;
+  value: Localized;
+  onChange: (next: Localized) => void;
+  area?: boolean;
+}) {
+  const Input = area ? TextArea : TextInput;
+  return (
+    <div className="ad-i18n-row">
+      <span className="ad-i18n-label">{label}</span>
+      <Input value={value.en} onChange={(e) => onChange({ ...value, en: e.target.value })} />
+      <Input value={value.ru} onChange={(e) => onChange({ ...value, ru: e.target.value })} />
     </div>
   );
 }
@@ -122,9 +202,9 @@ function CardsTab() {
               setEditId(p.id);
             }}
           >
-            <img src={resolveSrc(p.image)} alt="" />
+            {p.image ? <img src={resolveSrc(p.image)} alt="" /> : <i className="ad-thumb-empty" />}
             <div>
-              <strong>{p.title}</strong>
+              <strong>{p.title.ru || p.title.en}</strong>
               <span>
                 {p.type === "link" ? "Ссылка" : "Статья"} · {new Date(p.createdAt).toLocaleDateString("ru-RU")}
               </span>
@@ -175,16 +255,22 @@ function CardsTab() {
 }
 
 function blankPub(): Publication {
+  const id = uid("pub");
   return {
-    id: uid("pub"),
+    id,
     createdAt: Date.now(),
     order: -1,
-    title: "Новая публикация",
+    title: { en: "New publication", ru: "Новая публикация" },
     type: "article",
-    color: "#FF089C",
-    image: "builtin:magenta",
+    color: DEFAULT_ACCENT,
+    image: "",
     url: "",
-    blocks: [{ id: uid("b"), type: "heading", text: "Заголовок" }],
+    hashtags: [],
+    enEnabled: true,
+    blocks: {
+      en: [{ id: uid("b"), type: "heading", text: "Heading" }],
+      ru: [{ id: uid("b"), type: "heading", text: "Заголовок" }],
+    },
   };
 }
 
@@ -198,6 +284,11 @@ function CardForm({
   onSaved: (id: string) => void;
 }) {
   const [pub, setPub] = useState<Publication>(initial);
+  const [lang, setLang] = useState<Locale>("en");
+
+  useEffect(() => {
+    if (!pub.enEnabled && lang === "en") setLang("ru");
+  }, [pub.enEnabled, lang]);
 
   function patch(partial: Partial<Publication>) {
     setPub((p) => ({ ...p, ...partial }));
@@ -212,28 +303,52 @@ function CardForm({
         onSaved(pub.id);
       }}
     >
-      <Field label="Заголовок карточки">
-        <TextInput value={pub.title} onChange={(e) => patch({ title: e.target.value })} required />
-      </Field>
-
-      <div className="ad-type">
-        <button type="button" className={pub.type === "article" ? "is-on" : ""} onClick={() => patch({ type: "article" })}>
-          Статья
-        </button>
-        <button type="button" className={pub.type === "link" ? "is-on" : ""} onClick={() => patch({ type: "link" })}>
-          Ссылка
-        </button>
+      <div className="ad-lang-row">
+        <label className="ad-check">
+          <input type="checkbox" checked={pub.enEnabled} onChange={(e) => patch({ enEnabled: e.target.checked })} />
+          Английская версия
+        </label>
+        <div className="ad-type">
+          <button type="button" className={lang === "en" ? "is-on" : ""} disabled={!pub.enEnabled} onClick={() => setLang("en")}>
+            Английская версия
+          </button>
+          <button type="button" className={lang === "ru" ? "is-on" : ""} onClick={() => setLang("ru")}>
+            Русская версия
+          </button>
+        </div>
       </div>
 
-      <Field label="Цвет карточки (режим Color)">
-        <div className="ad-color">
-          <input type="color" value={pub.color} onChange={(e) => patch({ color: e.target.value })} />
-          <TextInput value={pub.color} onChange={(e) => patch({ color: e.target.value })} />
-          <span className="ad-color-swatch" style={cardSurface(pub.color)} />
-        </div>
-      </Field>
+      <div className="ad-card-layout">
+        <ImagePick label="Изображение" variant="tall" value={pub.image} onChange={(image) => patch({ image })} />
+        <div className="ad-card-fields">
+          <Field label="Заголовок карточки">
+            <TextInput
+              value={pub.title[lang]}
+              onChange={(e) => patch({ title: { ...pub.title, [lang]: e.target.value } })}
+              required
+            />
+          </Field>
 
-      <ImagePick label="Изображение" value={pub.image} onChange={(image) => patch({ image })} />
+          <div className="ad-type">
+            <button type="button" className={pub.type === "article" ? "is-on" : ""} onClick={() => patch({ type: "article" })}>
+              Статья
+            </button>
+            <button type="button" className={pub.type === "link" ? "is-on" : ""} onClick={() => patch({ type: "link" })}>
+              Ссылка
+            </button>
+          </div>
+
+          <Field label="Цвет акцента карточки">
+            <div className="ad-color">
+              <input type="color" value={pub.color} onChange={(e) => patch({ color: e.target.value })} />
+              <TextInput value={pub.color} onChange={(e) => patch({ color: e.target.value })} />
+              <span className="ad-color-swatch" style={cardSurface(pub.color)} />
+            </div>
+          </Field>
+
+          <HashtagField value={pub.hashtags} onChange={(hashtags) => patch({ hashtags })} />
+        </div>
+      </div>
 
       {pub.type === "link" && (
         <Field label="URL">
@@ -243,9 +358,12 @@ function CardForm({
 
       {pub.type === "article" && (
         <div className="ad-article">
-          <h3>Редактор статьи</h3>
+          <h3>Редактор статьи · {lang === "en" ? "EN" : "RU"}</h3>
           <p className="ad-hint">Блоки с шагом 10 px. Текст — Markdown.</p>
-          <BlockEditor blocks={pub.blocks} onChange={(blocks) => patch({ blocks })} />
+          <BlockEditor
+            blocks={pub.blocks[lang]}
+            onChange={(blocks) => patch({ blocks: { ...pub.blocks, [lang]: blocks } })}
+          />
         </div>
       )}
 
@@ -285,27 +403,28 @@ function ButtonsTab() {
       <section>
         <h3>Рядом с логотипом · до 4</h3>
         {data.nav.map((btn, i) => (
-          <div key={btn.id} className="ad-item-card">
+          <div key={btn.id} className="ad-item-card ad-item-card--row">
             <SvgPick
               label="SVG иконка"
               value={btn.svg}
               onChange={(svg) => setNav(data.nav.map((b, n) => (n === i ? { ...b, svg } : b)))}
             />
-            <Field label="Название">
-              <TextInput
+            <div className="ad-item-fields">
+              <LocalePair
+                label="Название"
                 value={btn.label}
-                onChange={(e) => setNav(data.nav.map((b, n) => (n === i ? { ...b, label: e.target.value } : b)))}
+                onChange={(label) => setNav(data.nav.map((b, n) => (n === i ? { ...b, label } : b)))}
               />
-            </Field>
-            <Field label="Ссылка">
-              <TextInput
-                value={btn.url}
-                onChange={(e) => setNav(data.nav.map((b, n) => (n === i ? { ...b, url: e.target.value } : b)))}
-              />
-            </Field>
-            <button type="button" className="ad-ghost danger" onClick={() => setNav(data.nav.filter((_, n) => n !== i))}>
-              Удалить
-            </button>
+              <Field label="Ссылка">
+                <TextInput
+                  value={btn.url}
+                  onChange={(e) => setNav(data.nav.map((b, n) => (n === i ? { ...b, url: e.target.value } : b)))}
+                />
+              </Field>
+              <button type="button" className="ad-ghost danger" onClick={() => setNav(data.nav.filter((_, n) => n !== i))}>
+                Удалить
+              </button>
+            </div>
           </div>
         ))}
         {data.nav.length < 4 && (
@@ -313,7 +432,10 @@ function ButtonsTab() {
             type="button"
             className="ad-btn"
             onClick={() =>
-              setNav([...data.nav, { id: uid("nav"), label: "Button", url: "https://", svg: "" }])
+              setNav([
+                ...data.nav,
+                { id: uid("nav"), label: { en: "Button", ru: "Кнопка" }, url: "https://", svg: "" },
+              ])
             }
           >
             + Кнопка
@@ -322,33 +444,35 @@ function ButtonsTab() {
       </section>
 
       <section>
-        <h3>Social Networks · до 6 · сетка 2×3</h3>
+        <h3>Соцсети · до 6 · сетка 2×3</h3>
         {data.socials.map((s, i) => (
-          <div key={s.id} className="ad-item-card">
+          <div key={s.id} className="ad-item-card ad-item-card--row">
             <ImagePick
               label="Иконка / фото"
+              variant="icon"
               value={s.image}
               onChange={(image) => setSocials(data.socials.map((x, n) => (n === i ? { ...x, image } : x)))}
             />
-            <Field label="Название">
-              <TextInput
+            <div className="ad-item-fields">
+              <LocalePair
+                label="Название"
                 value={s.label}
-                onChange={(e) => setSocials(data.socials.map((x, n) => (n === i ? { ...x, label: e.target.value } : x)))}
+                onChange={(label) => setSocials(data.socials.map((x, n) => (n === i ? { ...x, label } : x)))}
               />
-            </Field>
-            <Field label="Ссылка">
-              <TextInput
-                value={s.url}
-                onChange={(e) => setSocials(data.socials.map((x, n) => (n === i ? { ...x, url: e.target.value } : x)))}
-              />
-            </Field>
-            <button
-              type="button"
-              className="ad-ghost danger"
-              onClick={() => setSocials(data.socials.filter((_, n) => n !== i))}
-            >
-              Удалить
-            </button>
+              <Field label="Ссылка">
+                <TextInput
+                  value={s.url}
+                  onChange={(e) => setSocials(data.socials.map((x, n) => (n === i ? { ...x, url: e.target.value } : x)))}
+                />
+              </Field>
+              <button
+                type="button"
+                className="ad-ghost danger"
+                onClick={() => setSocials(data.socials.filter((_, n) => n !== i))}
+              >
+                Удалить
+              </button>
+            </div>
           </div>
         ))}
         {data.socials.length < 6 && (
@@ -356,7 +480,10 @@ function ButtonsTab() {
             type="button"
             className="ad-btn"
             onClick={() =>
-              setSocials([...data.socials, { id: uid("soc"), label: "Social", url: "https://", image: "builtin:ig" }])
+              setSocials([
+                ...data.socials,
+                { id: uid("soc"), label: { en: "Social", ru: "Соцсеть" }, url: "https://", image: "builtin:ig" },
+              ])
             }
           >
             + Ссылка

@@ -568,14 +568,55 @@ img {
   font-weight: 600;
 }
 
-.admin-link {
-  color: #555;
-  text-decoration: none;
+.lang-switch {
+  background: none;
+  border: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
   pointer-events: auto;
+  padding: 0;
 }
 
-.admin-link:hover {
-  color: #aaa;
+.lang-switch:hover {
+  color: #fff;
+}
+
+.lang-dot {
+  pointer-events: none;
+}
+
+.card-skeleton {
+  background: #2a2a2a;
+  pointer-events: none;
+}
+
+.skel {
+  background: linear-gradient(90deg, #333 0%, #444 50%, #333 100%);
+  background-size: 200% 100%;
+  animation: skel 1.2s ease infinite;
+  border-radius: 8px;
+}
+
+.skel-title {
+  width: 110px;
+  height: 28px;
+  margin: 6px 0 8px;
+}
+
+.skel-img {
+  width: 170px;
+  height: 150px;
+  border-radius: 36px;
+}
+
+@keyframes skel {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.load-sentinel {
+  height: 1px;
 }
 
 /* ——— banner ——— */

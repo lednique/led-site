@@ -1,13 +1,14 @@
 # LEDNIQUE
 
-Studio site + control panel.
+Сайт-витрина LEDNIQUE: карточки, баннер, статьи, панель `/admin`.
+
+- Языки: EN (Global) и RU. Определяется по системе, переключается в подвале.
+- Карточки хранятся в Supabase. Без ключей сайт показывает встроенный демо-набор.
+- Хостинг: Vercel (бесплатный план).
+
+Пошаговая установка для новичков: **[SETUP.md](./SETUP.md)**.
 
 ```bash
 npm install
 npm run dev
 ```
-
-- Public site: `/`
-- Admin: `/admin`
-
-Content is stored in the browser (`localStorage`). Use **Сбросить** in the panel to restore defaults.

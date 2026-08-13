@@ -1,5 +1,9 @@
 export type BlockType = "heading" | "text" | "image" | "form";
 
+export type Locale = "en" | "ru";
+
+export type Localized = { en: string; ru: string };
+
 export type ArticleBlock =
   | { id: string; type: "heading"; text: string }
   | { id: string; type: "text"; markdown: string }
@@ -10,33 +14,35 @@ export type Publication = {
   id: string;
   createdAt: number;
   order: number;
-  title: string;
+  title: Localized;
   type: "link" | "article";
   color: string;
   image: string;
   url?: string;
-  blocks: ArticleBlock[];
+  hashtags: string[];
+  enEnabled: boolean;
+  blocks: { en: ArticleBlock[]; ru: ArticleBlock[] };
 };
 
 export type NavItem = {
   id: string;
   svg: string;
   url: string;
-  label: string;
+  label: Localized;
 };
 
 export type SocialItem = {
   id: string;
   image: string;
   url: string;
-  label: string;
+  label: Localized;
 };
 
 export type BannerData = {
   image: string;
-  brand: string;
-  title: string;
-  cta: string;
+  brand: Localized;
+  title: Localized;
+  cta: Localized;
   url: string;
 };
 

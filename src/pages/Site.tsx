@@ -2,12 +2,15 @@ import { useNavigate, useParams } from "react-router-dom";
 import { Banner } from "../components/Banner";
 import { Sidebar } from "../components/Sidebar";
 import { Stage } from "../components/Stage";
-import { useSite } from "../store";
+import { useI18n } from "../i18n";
+import { useHydrateSite, useSite } from "../store";
 
 export function SitePage() {
   const data = useSite();
   const { id } = useParams();
   const navigate = useNavigate();
+  const { locale, setLocale, t } = useI18n();
+  useHydrateSite();
   const article = id ? data.publications.find((p) => p.id === id) : undefined;
   const open = Boolean(article);
 
@@ -30,10 +33,15 @@ export function SitePage() {
         )}
         <div className="page-footer">
           <p>
-            © LEDNIQUE — 2026. All Rights Reserved.{" "}
-            <a className="admin-link" href="/admin">
-              panel
-            </a>
+            <button
+              type="button"
+              className="lang-switch"
+              onClick={() => setLocale(locale === "en" ? "ru" : "en")}
+            >
+              {locale === "en" ? "EN" : "RU"}
+            </button>
+            <span className="lang-dot"> · </span>
+            {t("© LEDNIQUE — 2026. All Rights Reserved.", "© LEDNIQUE — 2026. Все права защищены.")}
           </p>
         </div>
       </div>

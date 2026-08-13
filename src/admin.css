@@ -394,6 +394,146 @@
   gap: 10px;
 }
 
+.ad-item-card--row {
+  flex-direction: row;
+  align-items: flex-start;
+}
+
+.ad-item-fields {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ad-card-layout,
+.ad-banner-layout {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 16px;
+  align-items: start;
+}
+
+.ad-card-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.ad-upload--tall {
+  width: 120px;
+  height: 220px;
+  min-height: 220px;
+}
+
+.ad-upload--icon {
+  width: 72px;
+  height: 72px;
+  min-height: 72px;
+}
+
+.ad-upload img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.ad-upload--wide img {
+  height: 140px;
+  object-fit: contain;
+}
+
+.ad-upload-empty,
+.ad-thumb-empty {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 48px;
+  background: rgba(255, 255, 255, 0.04);
+  outline: 1px dashed rgba(255, 255, 255, 0.2);
+  outline-offset: -6px;
+}
+
+.ad-lang-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.ad-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #ddd;
+}
+
+.ad-i18n-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ad-i18n-head,
+.ad-i18n-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 1fr;
+  gap: 10px;
+  align-items: start;
+}
+
+.ad-i18n-head span,
+.ad-i18n-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #9a9a9a;
+  padding-top: 12px;
+}
+
+.ad-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.ad-tag {
+  height: 16px;
+  padding: 0 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  background: transparent;
+  color: #fff;
+  font-size: 10px;
+  line-height: 14px;
+  cursor: pointer;
+}
+
+.ad-tag-input {
+  width: 120px;
+  height: 28px;
+  padding: 0 8px;
+}
+
+.admin-gate {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+}
+
+.admin-gate .ad-editor {
+  width: min(420px, 100%);
+}
+
 @media (max-width: 860px) {
   .admin {
     padding: 18px 14px 60px;

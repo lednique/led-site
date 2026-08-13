@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useI18n } from "../i18n";
 import { resolveSrc } from "../media";
 import type { BannerData } from "../types";
 import { FaceMark } from "./FaceMark";
@@ -9,22 +10,25 @@ type BannerProps = {
 };
 
 export function Banner({ data, variant }: BannerProps) {
+  const { loc } = useI18n();
   const img = resolveSrc(data.image);
   const copy = (
     <div className="banner-copy">
       <div className="banner-brand">
         <FaceMark />
-        <span>{data.brand}</span>
+        <span>{loc(data.brand)}</span>
       </div>
       <p className="banner-title">
-        {data.title.split("\n").map((line) => (
-          <span key={line}>
-            {line}
-            <br />
-          </span>
-        ))}
+        {loc(data.title)
+          .split("\n")
+          .map((line) => (
+            <span key={line}>
+              {line}
+              <br />
+            </span>
+          ))}
       </p>
-      <p className="banner-cta">{data.cta}</p>
+      <p className="banner-cta">{loc(data.cta)}</p>
       <div className="banner-rule" />
     </div>
   );

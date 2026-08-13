@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { sortedPublications } from "../store";
+import { useI18n } from "../i18n";
+import { visiblePublications } from "../store";
 import type { SiteData } from "../types";
 import { Banner } from "./Banner";
-import { PublicationCard, SocialCard } from "./Cards";
+import { CardSkeleton, PublicationCard, SocialCard } from "./Cards";
 import { Logo } from "./Logo";
 import { NavButton } from "./NavButton";
 
@@ -15,13 +16,25 @@ type SidebarProps = {
   onHome: () => void;
 };
 
+const FIRST = 20;
+const STEP = 10;
+
 export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: SidebarProps) {
   const navigate = useNavigate();
+  const { locale, loc } = useI18n();
   const scroller = useRef<HTMLDivElement>(null);
+  const sentinel = useRef<HTMLDivElement>(null);
   const [scrolled, setScrolled] = useState(false);
-  const pubs = sortedPublications(data);
-  const right = pubs.filter((_, i) => i % 2 === 0);
-  const left = pubs.filter((_, i) => i % 2 === 1);
+  const [limit, setLimit] = useState(FIRST);
+  const [loadingMore, setLoadingMore] = useState(false);
+
+  const all = useMemo(() => visiblePublications(data, locale), [data, locale]);
+  const pubs = all.slice(0, limit);
+  const hasMore = limit < all.length;
+
+  useEffect(() => {
+    setLimit(FIRST);
+  }, [locale]);
 
   useEffect(() => {
     const el = scroller.current;
@@ -31,6 +44,25 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
     el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
   }, []);
+
+  useEffect(() => {
+    const root = scroller.current;
+    const node = sentinel.current;
+    if (!root || !node) return;
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        if (!entry.isIntersecting || !hasMore || loadingMore) return;
+        setLoadingMore(true);
+        window.setTimeout(() => {
+          setLimit((n) => n + STEP);
+          setLoadingMore(false);
+        }, 420);
+      },
+      { root, rootMargin: "80px" },
+    );
+    io.observe(node);
+    return () => io.disconnect();
+  }, [hasMore, loadingMore, pubs.length]);
 
   function handleCard(id: string, type: "link" | "article", url?: string) {
     if (type === "article" && activeId === id) {
@@ -49,6 +81,9 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
     onOpenArticle(id);
   }
 
+  const right = pubs.filter((_, i) => i % 2 === 0);
+  const left = pubs.filter((_, i) => i % 2 === 1);
+
   return (
     <aside className={`sidebar${articleOpen ? " has-article" : ""}${scrolled ? " is-scrolled" : ""}`}>
       <div className="sidebar-blur" aria-hidden>
@@ -65,7 +100,7 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
       <header className="topbar">
         <div className="topbar-actions">
           {data.nav.slice(0, 4).map((btn) => (
-            <NavButton key={btn.id} label={btn.label} href={btn.url} svg={btn.svg} />
+            <NavButton key={btn.id} label={loc(btn.label)} href={btn.url} svg={btn.svg} />
           ))}
         </div>
         <Logo onClick={onHome} />
@@ -97,6 +132,7 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
                   onOpen={() => handleCard(item.id, item.type, item.url)}
                 />
               ))}
+              {loadingMore && <CardSkeleton />}
             </div>
             <div className="col">
               {right.map((item) => (
@@ -107,8 +143,10 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
                   onOpen={() => handleCard(item.id, item.type, item.url)}
                 />
               ))}
+              {loadingMore && <CardSkeleton />}
             </div>
           </div>
+          <div ref={sentinel} className="load-sentinel" />
         </div>
       </div>
     </aside>
