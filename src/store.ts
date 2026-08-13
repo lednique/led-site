@@ -626,32 +626,51 @@ export function useBrandAssets() {
   }, [data.favicon]);
 }
 
+/** Ширина, ниже которой включается мобильная вёрстка (см. styles.css). */
+const MOBILE_QUERY = "(max-width: 799px)";
+
+function setMeta(name: string, content: string) {
+  let meta = document.head.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
+  if (!meta) {
+    meta = document.createElement("meta");
+    meta.name = name;
+    document.head.appendChild(meta);
+  }
+  meta.content = content;
+}
+
+/**
+ * Цвет статус-бара / панели вкладок из панели управления (вкладка «Баннер»).
+ *
+ * Мобильные браузеры и PWA получают цвет из настроек, десктопные окна браузера
+ * остаются со сплошным чёрным — там панель вкладок красить не нужно.
+ * Порог тот же, что и у мобильной вёрстки: 800px.
+ */
 export function useThemeColor() {
   const data = useSite();
+  const themeColor = (data.themeColor || "#000000").trim() || "#000000";
+
   useEffect(() => {
-    const color = (data.themeColor || "#000000").trim() || "#000000";
-    const metas: [string, string][] = [
-      ["theme-color", color],
-      ["msapplication-navbutton-color", color],
-    ];
-    for (const [name, content] of metas) {
-      let meta = document.head.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
-      if (!meta) {
-        meta = document.createElement("meta");
-        meta.name = name;
-        document.head.appendChild(meta);
-      }
-      meta.content = content;
-    }
-    // iOS Safari: стиль статус-бара. «black» даёт тёмную панель под цвет сайта.
-    let ios = document.head.querySelector<HTMLMetaElement>(
-      `meta[name="apple-mobile-web-app-status-bar-style"]`,
-    );
-    if (!ios) {
-      ios = document.createElement("meta");
-      ios.name = "apple-mobile-web-app-status-bar-style";
-      document.head.appendChild(ios);
-    }
-    ios.content = isLightColor(color) ? "default" : "black";
-  }, [data.themeColor]);
+    const mq = window.matchMedia(MOBILE_QUERY);
+
+    const apply = () => {
+      // На десктопе всегда сплошной чёрный, на мобильной — цвет из панели.
+      const color = mq.matches ? themeColor : "#000000";
+      setMeta("theme-color", color);
+      setMeta("msapplication-navbutton-color", color);
+      // Подложка под статус-баром в iOS-PWA (см. .status-bar-fill).
+      document.documentElement.style.setProperty("--status-bar", color);
+      // iOS: прозрачный статус-бар пускает контент под себя, и его закрывает
+      // наша подложка нужного цвета. Для светлых цветов белые системные
+      // надписи были бы нечитаемы, поэтому оставляем системный светлый бар.
+      setMeta(
+        "apple-mobile-web-app-status-bar-style",
+        isLightColor(color) ? "default" : "black-translucent",
+      );
+    };
+
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, [themeColor]);
 }

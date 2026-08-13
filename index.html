@@ -3,10 +3,19 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <!-- viewport-fit=cover нужен, чтобы в PWA на iOS контент уходил под
+         статус-бар: тогда его можно закрасить подложкой .status-bar-fill. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <!-- Стартовый цвет статус-бара. Реальный цвет из панели управления
+         (вкладка «Баннер») подставляется в рантайме — см. useThemeColor. -->
     <meta name="theme-color" content="#000000" />
     <meta name="msapplication-navbutton-color" content="#000000" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="LEDNIQUE" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>LEDNIQUE</title>
     <meta
       name="description"
