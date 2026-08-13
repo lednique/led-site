@@ -23,6 +23,92 @@
   padding: 0;
 }
 
+/* ——— защита от выделения и drag ———
+   Текст и изображения на сайте не должны выделяться мышью или зажиматься
+   пальцем. Поля ввода и текстовые блоки в панели управления сохраняют
+   выделение через явный user-select: text ниже. */
+html,
+body,
+#root {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Карточки, баннеры, иконки, кнопки — на всем, что выглядит как UI,
+   отключаем выделение даже если родитель явно его включил. Иначе
+   пользователь может зажать пальцем картинку на мобиле и получить
+   контекстное меню. */
+.card,
+.card-img,
+.card-body,
+.card-title,
+.card-hover,
+.banner,
+.banner-media,
+.banner--hero,
+.banner--rail,
+.nav-btn,
+.nav-btn-pill,
+.social-card,
+.social-well,
+.social-dot,
+.logo,
+.menu-item,
+.menu-toggle {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+img,
+svg,
+picture,
+video,
+canvas {
+  /* Запрет «утаскивания» картинки в новое окно / на рабочий стол и появления
+     контекстного «сохранить как» от долгого нажатия на iOS. pointer-events
+     не отключаем — иначе сломаются клики по карточкам и ссылкам-иконкам. */
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+img {
+  /* Картинки тоже не выделяем рамкой выделения */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Контент-зоны (статьи, формы) оставляем редактируемыми: иначе пользователь
+   не сможет скопировать название или ввести текст в поля ввода. */
+input,
+textarea,
+[contenteditable="true"],
+.md,
+.glass-form,
+.md p,
+.md li,
+.md code,
+.md a,
+.md h1,
+.md h2,
+.md h3 {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
+/* На самой карточке/баннере выделение всё равно мешает — там только иконки
+   и подписи. Но статьи (article-blocks) должны оставаться копируемыми. */
+.article-blocks,
+.article-title,
+.stage-title,
+.block-heading {
+  -webkit-user-select: text;
+  user-select: text;
+}
+
 html,
 body,
 #root {
@@ -37,7 +123,10 @@ body,
 }
 
 ::selection {
-  background: #ff089c;
+  /* Прозрачный фон выделения: на сайте текст в основном не выделяется,
+     а там где выделяется (статьи, поля ввода) — лучше без яркой подсветки,
+     чтобы не выбивалось из тёмного дизайна. */
+  background: rgba(255, 255, 255, 0.18);
   color: #fff;
 }
 
@@ -921,6 +1010,9 @@ img {
   overflow: auto;
   padding: 28px 36px 48px;
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.72) 100%);
+  /* Горизонтальный padding родителя. Картинки используют его в расчёте
+     «вылазящего» размера на мобильной, чтобы стать edge-to-edge. */
+  --reader-pad-x: 36px;
 }
 
 .article-top {
@@ -950,7 +1042,13 @@ img {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  max-width: 560px;
+  /* Широкая колонка (до 900 px), прижата margin-left: auto к правому краю
+     .stage-reader — текст и картинка «уходят» вправо. Когда места
+     меньше — колонка сужается вместе с правым контейнером, и картинка
+     с width: 100% / max-width: 800 масштабируется вместе с ней. */
+  width: 100%;
+  max-width: 900px;
+  margin-left: auto;
 }
 
 .block-heading {
@@ -959,10 +1057,36 @@ img {
 }
 
 .block-image {
+  /* Картинка в статье: от 0 до 800 px по ширине, занимает всю ширину
+     колонки .article-blocks. Если колонка шире 800 — картинка упирается
+     в max-width 800 и центрируется в колонке. Если колонка уже 800 —
+     картинка сужается вместе с ней, потому что width: 100% от родителя.
+     Без min-width: на очень узких экранах картинка тоже сжимается. */
+  display: block;
   width: 100%;
+  max-width: 800px;
+  align-self: center;
   border-radius: 24px;
   /* GIF и APNG отдаём как есть — без масштабирующего сглаживания кадров */
   image-rendering: auto;
+}
+
+/* На мобильной картинка занимает всю ширину viewport от края до края
+   экрана. Сбрасываем transform-центрирование, расширяем width на
+   величину горизонтального padding родителя и сдвигаем отрицательными
+   margin'ами в обе стороны, чтобы левый край упёрся в 0, а правый — в
+   100vw. */
+@media (max-width: 799px) {
+  .block-image {
+    width: calc(100% + 2 * var(--reader-pad-x, 36px));
+    max-width: none;
+    min-width: 0;
+    left: auto;
+    transform: none;
+    border-radius: 0;
+    margin-left: calc(-1 * var(--reader-pad-x, 36px));
+    margin-right: calc(-1 * var(--reader-pad-x, 36px));
+  }
 }
 
 .article-link {
@@ -1437,6 +1561,10 @@ img {
   .mobile-sheet .stage-reader {
     min-height: 100%;
     background: #000;
+    /* --reader-pad-x должен совпадать с горизонтальным padding .stage-reader
+       на мобильной (36px), иначе картинка не достанет до края экрана.
+       Текст остаётся в колонке 36px, фото уезжает к самому краю. */
+    --reader-pad-x: 36px;
   }
 
   .sidebar {

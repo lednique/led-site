@@ -99,6 +99,36 @@ function withOrder(data: SiteData): SiteData {
   };
 }
 
+/**
+ * Публикации, которые пользователь явно удалил (в этой сессии).
+ * Храним в localStorage отдельным ключом, чтобы при следующей загрузке
+ * страницы карточки не возвращались ни из локального кеша, ни из миграции
+ * в Supabase. Записи здесь живут до тех пор, пока пользователь сам их не
+ * очистит (или пока не сотрёт ключ вручную).
+ */
+const TOMBSTONE_KEY = "lednique-deleted-pubs-v1";
+const tombstone = new Set<string>();
+loadTombstone();
+
+function loadTombstone() {
+  try {
+    const raw = localStorage.getItem(TOMBSTONE_KEY);
+    if (!raw) return;
+    const arr = JSON.parse(raw);
+    if (Array.isArray(arr)) arr.forEach((id) => typeof id === "string" && tombstone.add(id));
+  } catch {
+    /* ignore */
+  }
+}
+
+function saveTombstone() {
+  try {
+    localStorage.setItem(TOMBSTONE_KEY, JSON.stringify([...tombstone]));
+  } catch {
+    /* quota */
+  }
+}
+
 function loadLocal(): SiteData | null {
   try {
     for (const key of LOCAL_KEYS) {
@@ -106,9 +136,12 @@ function loadLocal(): SiteData | null {
       if (!raw) continue;
       const parsed = JSON.parse(raw) as SiteData;
       if (!parsed || !Array.isArray(parsed.publications)) continue;
+      // Не возвращаем из кеша то, что пользователь явно удалил.
+      const publications = parsed.publications.filter((p) => !tombstone.has(p.id));
       return withOrder({
         ...defaultSite,
         ...parsed,
+        publications,
         favicon: parsed.favicon ?? "",
         pages: mergePages(parsed.pages, defaultSite.pages),
       });
@@ -205,7 +238,11 @@ const publicationWrites = new Map<string, Promise<void>>();
 // могут принести старую строку. Такие строки не возвращаем в локальное состояние.
 // После успешного удаления id остаётся в наборе до перезагрузки страницы — это
 // также защищает от уже начатого до удаления запроса refreshFromSupabase.
-const deletedPublicationIds = new Set<string>();
+//
+// Идентификаторы из tombstone (см. loadTombstone) синхронизируем с этим
+// множеством, чтобы refresh из Supabase и миграция локальных данных
+// не воскрешали карточки, удалённые пользователем ранее.
+const deletedPublicationIds: Set<string> = new Set(tombstone);
 
 function emit() {
   listeners.forEach((l) => l());
@@ -477,8 +514,13 @@ export function savePublication(pub: Publication) {
  * карточку, если база не подтвердила удаление.
  */
 export async function removePublication(id: string): Promise<boolean> {
-  const removed = state.publications.find((p) => p.id === id);
   deletedPublicationIds.add(id);
+  // Запоминаем удаление в localStorage, чтобы при следующей загрузке страницы
+  // ни hydrateFromSupabase, ни миграция локальных данных, ни refresh не
+  // воскресили карточку. Сохраняем ДО отправки DELETE — даже если Supabase
+  // не ответит, локальный кеш не выдаст её снова.
+  tombstone.add(id);
+  saveTombstone();
   replaceSite({ ...state, publications: state.publications.filter((p) => p.id !== id) });
 
   if (!supabase) return true;
@@ -502,10 +544,11 @@ export async function removePublication(id: string): Promise<boolean> {
     setSync({ error: null, mode: "live" });
     return true;
   } catch (error) {
-    deletedPublicationIds.delete(id);
-    if (removed && !state.publications.some((p) => p.id === id)) {
-      replaceSite({ ...state, publications: [...state.publications, removed] });
-    }
+    // Сеть упала или Supabase не подтвердил DELETE, но удаление было
+    // намеренным: tombstone уже сохранён в localStorage, поэтому карточка
+    // не вернётся при следующей загрузке. Восстанавливать её в state тоже
+    // нельзя — иначе локально она появится снова до refresh'а и зрительно
+    // отменит удаление. Покажем только статус сбоя.
     setSync({ error: errorMessage(error), mode: "offline" });
     return false;
   }
@@ -528,7 +571,10 @@ export function movePublication(id: string, dir: -1 | 1) {
 
 async function pushSite(data: SiteData) {
   if (!supabase) return;
-  const pubs = await Promise.all(data.publications.map((p) => materializePublication(p)));
+  // Не воскрешаем записи, которые пользователь явно удалил — иначе они
+  // появятся в Supabase и вернутся в ленту на следующей загрузке.
+  const pubsInput = data.publications.filter((p) => !tombstone.has(p.id));
+  const pubs = await Promise.all(pubsInput.map((p) => materializePublication(p)));
   const bannerImage = await ensureRemoteSrc(data.banner.image, "banner");
   const socials = await Promise.all(
     data.socials.map(async (s) => ({ ...s, image: await ensureRemoteSrc(s.image, "socials") })),
@@ -604,7 +650,12 @@ export async function hydrateFromSupabase() {
 
   if (!emptyRemote && local) {
     const remoteIds = new Set(pubs.map((p) => p.id));
-    const extras = local.publications.filter((p) => !remoteIds.has(p.id) && isLocalExtra(p));
+    // Не тащим в базу карточки, которые пользователь явно удалил: они могли
+    // остаться в localStorage, но восстанавливать их в Supabase нельзя —
+    // иначе после следующего refresh они вернутся в ленту.
+    const extras = local.publications.filter(
+      (p) => !remoteIds.has(p.id) && isLocalExtra(p) && !tombstone.has(p.id),
+    );
     if (extras.length) {
       next = { ...next, publications: [...extras, ...next.publications] };
       replaceSite(next);
