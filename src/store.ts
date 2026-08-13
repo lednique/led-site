@@ -613,20 +613,27 @@ export function useBrandAssets() {
     // это статичные непрозрачные PNG из public/ (см. index.html). Фавиконка из
     // панели управления отвечает только за вкладку браузера, а SVG/прозрачный
     // PNG в роли иконки «На экран Домой» на iOS не работает.
-    const rels = ["icon", "shortcut icon"];
-    for (const rel of rels) {
-      let link = document.head.querySelector<HTMLLinkElement>(`link[rel="${rel}"]`);
-      if (!link) {
-        link = document.createElement("link");
-        link.rel = rel;
-        document.head.appendChild(link);
-      }
-      link.href = href;
-      if (href.startsWith("data:image/png") || href.endsWith(".png")) link.type = "image/png";
-      else if (href.startsWith("data:image/svg") || href.endsWith(".svg")) link.type = "image/svg+xml";
-      else if (href.startsWith("data:image/jpeg") || href.endsWith(".jpg") || href.endsWith(".jpeg")) link.type = "image/jpeg";
-      else link.removeAttribute("type");
+    // Свою фавиконку из панели ставим одной ссылкой, а размерные PNG-запасные
+    // варианты из index.html убираем — иначе браузер мог бы взять их вместо
+    // загруженной картинки. Без своей фавиконки оставляем всё как в разметке.
+    const custom = Boolean(data.favicon);
+    for (const stale of document.head.querySelectorAll<HTMLLinkElement>(
+      'link[rel="icon"][sizes], link[rel="shortcut icon"]',
+    )) {
+      if (custom) stale.remove();
     }
+
+    let link = document.head.querySelector<HTMLLinkElement>('link[rel="icon"]:not([sizes])');
+    if (!link) {
+      link = document.createElement("link");
+      link.rel = "icon";
+      document.head.appendChild(link);
+    }
+    link.href = href;
+    if (href.startsWith("data:image/png") || href.endsWith(".png")) link.type = "image/png";
+    else if (href.startsWith("data:image/svg") || href.endsWith(".svg")) link.type = "image/svg+xml";
+    else if (href.startsWith("data:image/jpeg") || href.endsWith(".jpg") || href.endsWith(".jpeg")) link.type = "image/jpeg";
+    else link.removeAttribute("type");
   }, [data.favicon]);
 }
 
