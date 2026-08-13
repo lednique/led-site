@@ -258,6 +258,14 @@ function CardsTab() {
   const [draft, setDraft] = useState<Publication | null>(null);
   const current = draft ?? pubs.find((p) => p.id === editId) ?? null;
 
+  // После удаления открываем следующую доступную карточку, а не оставляем
+  // справа пустой редактор с id уже удалённой публикации.
+  useEffect(() => {
+    if (!draft && !pubs.some((p) => p.id === editId)) {
+      setEditId(pubs[0]?.id ?? null);
+    }
+  }, [draft, editId, pubs]);
+
   return (
     <div className="ad-split">
       <aside className="ad-list">
@@ -474,8 +482,11 @@ function CardForm({
           <button
             type="button"
             className="ad-ghost danger"
-            onClick={() => {
-              if (confirm("Удалить публикацию?")) removePublication(pub.id);
+            onClick={async () => {
+              if (!confirm("Удалить публикацию?")) return;
+              if (!(await removePublication(pub.id))) {
+                window.alert("Не удалось удалить публикацию. Подробности показаны в статусе подключения сверху.");
+              }
             }}
           >
             Удалить
