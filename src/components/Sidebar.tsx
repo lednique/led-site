@@ -114,13 +114,15 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
         <Banner data={data.banner} variant="rail" />
       </div>
 
-      <header className="topbar">
-        <div className="topbar-actions">
-          {data.nav.slice(0, 4).map((btn) => (
-            <NavButton key={btn.id} label={loc(btn.label)} href={btn.url} svg={btn.svg} />
-          ))}
-        </div>
-        <Logo onClick={onHome} />
+      <div className="top-chrome">
+        <header className="topbar">
+          <div className="topbar-actions">
+            {data.nav.slice(0, 4).map((btn) => (
+              <NavButton key={btn.id} label={loc(btn.label)} href={btn.url} svg={btn.svg} />
+            ))}
+          </div>
+          <Logo onClick={onHome} />
+        </header>
         <div className={`sidebar-topfade${scrolled ? " is-on" : ""}`}>
           <button
             type="button"
@@ -133,7 +135,7 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome }: 
             </svg>
           </button>
         </div>
-      </header>
+      </div>
 
       <div className="board-wrap">
         <div className="sidebar-scroll" ref={scroller}>
