@@ -1123,7 +1123,9 @@ img {
     0px 3px 6px rgba(0, 0, 0, 0.2),
     1px 0px 2px rgba(0, 0, 0, 0.3),
     -1px 0px 2px rgba(0, 0, 0, 0.3);
-  transition: background 150ms var(--ease-out-back);
+  transition:
+    transform 150ms var(--ease-out-back),
+    background 150ms var(--ease-out-back);
 }
 
 .menu-item::after {
@@ -1140,8 +1142,14 @@ img {
 
 @media (hover: hover) {
   .menu-item:hover {
+    transform: scale(1.03);
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
   }
+}
+
+.menu-item:focus-visible {
+  transform: scale(1.03);
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
 }
 
 /* ——— сенсорные экраны: эффект «hover» срабатывает только в момент нажатия ——— */
@@ -1191,6 +1199,7 @@ img {
   }
 
   .menu-item:active {
+    transform: scale(1.03);
     background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
   }
 
