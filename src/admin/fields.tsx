@@ -1,7 +1,11 @@
 import { useState, type ChangeEvent, type KeyboardEvent } from "react";
-import { readFileAsText, sanitizeSvg } from "../lib/files";
+import { inspectImage, readFileAsText, sanitizeSvg } from "../lib/files";
 import { uploadMedia } from "../lib/upload";
 import { resolveSrc } from "../media";
+
+/** Явно перечисляем форматы: часть браузеров не подставляет GIF/APNG под image/*. */
+const ACCEPT_IMAGE =
+  "image/*,image/gif,image/apng,image/png,image/webp,image/jpeg,image/svg+xml,.gif,.apng,.png,.webp,.jpg,.jpeg,.svg,.ico";
 
 type FieldProps = {
   label: string;
@@ -45,12 +49,15 @@ export function ImagePick({
   clearable?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
+  const [kind, setKind] = useState<string>("");
 
   async function onFile(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     setBusy(true);
     try {
+      const info = await inspectImage(file);
+      setKind(info.animated ? info.ext.toUpperCase() : "");
       onChange(await uploadMedia(file, folder, { max: maxSize, mime }));
     } catch {
       window.alert("Не удалось загрузить изображение");
@@ -60,12 +67,15 @@ export function ImagePick({
     }
   }
 
+  const animated = kind || animatedBadge(value);
+
   return (
     <div className={`ad-field ad-image-field ad-image-field--${variant}`}>
       <span>{label}</span>
       <div className={`ad-upload ad-upload--${variant}${value ? " has-img" : ""}${busy ? " is-busy" : ""}`}>
         {value ? <img src={resolveSrc(value)} alt="" /> : <i className="ad-upload-empty" />}
-        <input type="file" accept="image/*,.ico,.svg" onChange={onFile} />
+        {animated ? <b className="ad-anim-badge">{animated}</b> : null}
+        <input type="file" accept={ACCEPT_IMAGE} onChange={onFile} />
       </div>
       {clearable && value ? (
         <button type="button" className="ad-ghost ad-clear-img" onClick={() => onChange("")}>
@@ -74,6 +84,14 @@ export function ImagePick({
       ) : null}
     </div>
   );
+}
+
+/** Определяет анимированный формат по уже сохранённой ссылке. */
+function animatedBadge(src: string): string {
+  if (!src) return "";
+  if (/\.gif(\?|$)/i.test(src) || src.startsWith("data:image/gif")) return "GIF";
+  if (/\.apng(\?|$)/i.test(src) || src.startsWith("data:image/apng")) return "APNG";
+  return "";
 }
 
 export function SvgPick({
