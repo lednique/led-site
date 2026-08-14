@@ -32,9 +32,10 @@ export function Stage({ banner, article, onClose }: StageProps) {
               <CloseIcon />
             </NavButton>
           </div>
+          <div className={`stage-topfade${readerScrolled ? " is-on" : ""}`} aria-hidden="true" />
           <div
             key={article.id}
-            className={`stage-reader${readerScrolled ? " is-scrolled" : ""}`}
+            className="stage-reader"
             onScroll={handleReaderScroll}
           >
             <ArticleView pub={article} />

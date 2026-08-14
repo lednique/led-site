@@ -1047,28 +1047,23 @@ img {
   --reader-pad-x: 36px;
 }
 
-/* Верхняя подложка остаётся в окне прокрутки и включается только после
-   первого движения. Она перекрывает первые 100 px контекста, но находится
-   ниже закреплённой кнопки закрытия и desktop-menu. */
-.stage-reader::before {
-  content: "";
-  position: sticky;
+/* Верхняя подложка закреплена на самой верхней границе stage, а не в
+   потоке статьи. Поэтому она начинается от верхнего края сайта и остаётся
+   под кнопками desktop-menu и закрытия. */
+.stage-topfade {
+  position: absolute;
   top: 0;
-  z-index: 5;
-  display: block;
-  width: calc(100% + 2 * var(--reader-pad-x));
+  left: 0;
+  right: 0;
   height: 100px;
-  margin-top: calc(-1 * var(--reader-pad-top));
-  margin-right: 0;
-  margin-bottom: calc(var(--reader-pad-top) - 100px);
-  margin-left: calc(-1 * var(--reader-pad-x));
+  z-index: 5;
   background: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0) 100%);
   opacity: 0;
   pointer-events: none;
   transition: opacity 180ms ease;
 }
 
-.stage-reader.is-scrolled::before {
+.stage-topfade.is-on {
   opacity: 1;
 }
 
@@ -1714,10 +1709,6 @@ img {
     --reader-pad-x: 36px;
   }
 
-  .mobile-sheet .stage-reader::before {
-    top: 0;
-  }
-
   .sidebar {
     width: 100%;
   }
@@ -1786,9 +1777,12 @@ img {
     justify-content: flex-end;
   }
 
-  /* Статья не заезжает под ряд кнопок. */
+  /* Кнопка закрытия на той же горизонтали, что и кнопки верхнего меню,
+     но с левой стороны области статьи. */
   .stage-close {
-    top: 72px;
+    top: 25px;
+    left: 36px;
+    right: auto;
   }
 
   .stage-reader {
