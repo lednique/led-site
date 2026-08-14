@@ -133,9 +133,8 @@ body,
 /* ——— статус-бар PWA ———
    В мобильной ленте верхний safe-area должен оставаться непрозрачным:
    иначе при прокрутке карточки видны через системный статус-бар. Сам блок
-   не занимает место в потоке и рисуется поверх страницы. На устройствах,
-   где safe-area не отдаётся браузеру, мобильное правило добавляет небольшой
-   минимальный защитный слой. */
+   не занимает место в потоке и рисуется поверх страницы, когда браузер
+   действительно сообщает размер safe-area. */
 .status-bar-fill {
   display: none;
   position: fixed;
@@ -1428,10 +1427,6 @@ img {
 
   .status-bar-fill {
     display: block;
-    /* Если браузер не сообщает safe-area-inset-top, всё равно закрываем
-       стандартную область системного статус-бара. */
-    height: 24px;
-    height: max(24px, env(safe-area-inset-top, 0px));
   }
 
   /* Скроллит viewport, не внутренние контейнеры. overflow:auto/hidden
@@ -1750,13 +1745,6 @@ img {
    теперь viewport-fit=cover убран, чёрная полоса снизу полностью убрана,
    safe-area учитываем только чтобы не прятать контент под вырезы. */
 @media (max-width: 799px) and (display-mode: standalone) {
-  .status-bar-fill {
-    /* В некоторых standalone-браузерах safe-area-inset-top равен 0,
-       хотя системный статус-бар всё равно рисуется поверх страницы. */
-    height: 24px;
-    height: max(24px, env(safe-area-inset-top, 0px));
-  }
-
   .page {
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
