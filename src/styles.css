@@ -958,7 +958,7 @@ img {
 .banner--hero .banner-copy {
   position: absolute;
   left: calc(390px + (100% - 390px) / 2);
-  bottom: 50px;
+  bottom: 0;
   transform: translateX(-50%);
   width: 390px;
   min-width: 390px;
@@ -1423,12 +1423,9 @@ img {
   }
 
   /* Картинка верхнего баннера на мобиле: во весь блок, прижата к верху,
-     и вылезает на 100px ВЫШЕ баннера за его границы (сам блок 250px
-     остаётся прежним, меняется только фон). Контейнер (.rail-banner)
-     ниже переключён на overflow: visible, чтобы картинка не обрезалась. */
+     без вылета за границы — размер баннера прежний (250px). */
   .banner--rail .banner-bg {
     background-position: left top;
-    top: -100px;
   }
 
   /* Текст мобильного верхнего баннера (TraceBase) кладём в тот же контейнер
@@ -1463,6 +1460,7 @@ img {
   }
 
   .banner--rail .banner-cta {
+    top: auto;
     left: 0;
     right: 0;
     bottom: 22px;
@@ -1584,8 +1582,6 @@ img {
     opacity: 1;
     flex-shrink: 0;
     transition: none;
-    /* Не обрезаем фон баннера, который вылезает на 100px выше блока. */
-    overflow: visible;
   }
 
   /* Только sticky: шапка едет вместе со страницей и плавно
