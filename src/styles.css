@@ -843,6 +843,10 @@ img {
   width: 390px;
   height: 250px;
   position: relative;
+  /* Изображение баннера прижимаем к верхнему краю контейнера — текст
+     (бренд / заголовок / CTA) лежит внизу, поэтому верх картинки остаётся
+     видимым. На мобильной (.banner--rail в @media) позиция та же (left top). */
+  background-position: center top;
 }
 
 /* Градиент баннера TraceBase (чёрный снизу → прозрачный вверх).
@@ -1090,7 +1094,7 @@ img {
 }
 
 .article-link {
-  align-self: flex-start;
+  align-self: center;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -1213,6 +1217,23 @@ img {
 .form-thanks {
   font-size: 14px;
   font-weight: 600;
+}
+
+/* Встраиваемый блок (iframe / виджет / плеер стороннего сервиса).
+   Растягиваем на всю колонку статьи и не даём вложенному медиа вылезти
+   за её пределы. */
+.block-embed {
+  width: 100%;
+  align-self: stretch;
+  border-radius: 18px;
+  overflow: hidden;
+}
+
+.block-embed iframe,
+.block-embed video,
+.block-embed img {
+  max-width: 100%;
+  border: 0;
 }
 
 .mobile-sheet {
@@ -1385,6 +1406,48 @@ img {
     width: 100%;
     background-size: cover;
     background-position: left top;
+  }
+
+  /* Текст мобильного верхнего баннера (TraceBase) кладём в тот же контейнер
+     390×140, что и копия «большого» баннера на компьютере (.banner--hero
+     .banner-copy): прижат к низу и центрируется по ширине баннера. Полоску
+     (.banner-rule) привязываем к центру этого контейнера, чтобы она не
+     уплывала к краю на узких экранах. Координаты детей (brand / title /
+     cta / rule) совпадают с .banner--hero — текст выглядит одинаково. */
+  .banner--rail .banner-copy {
+    position: absolute;
+    inset: auto;
+    left: 50%;
+    bottom: 50px;
+    transform: translateX(-50%);
+    width: 390px;
+    max-width: 100%;
+    height: 140px;
+    flex: none;
+    z-index: 25;
+    pointer-events: auto;
+  }
+
+  .banner--rail .banner-brand {
+    left: 13px;
+    top: 40px;
+  }
+
+  .banner--rail .banner-title {
+    right: 15px;
+    top: 48px;
+  }
+
+  .banner--rail .banner-cta {
+    left: 0;
+    right: 0;
+    bottom: 22px;
+  }
+
+  .banner--rail .banner-rule {
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 8px;
   }
 
   /* ——— кнопка-меню сверху справа на баннере (без фона) ——— */
