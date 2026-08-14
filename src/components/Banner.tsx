@@ -51,29 +51,30 @@ export function Banner({ data, variant }: BannerProps) {
         {copy}
       </>
     ) : (
-      copy
+      <>
+        {img ? <div className="banner-bg" style={{ backgroundImage: `url(${img})` }} /> : null}
+        {copy}
+      </>
     );
-
-  const style = variant === "rail" ? { backgroundImage: `url(${img})` } : undefined;
 
   if (data.url) {
     const external = /^https?:|mailto:/i.test(data.url);
     if (external) {
       return (
-        <a className={className} style={style} href={data.url} target="_blank" rel="noreferrer">
+        <a className={className} href={data.url} target="_blank" rel="noreferrer">
           {body}
         </a>
       );
     }
     return (
-      <Link className={className} style={style} to={data.url}>
+      <Link className={className} to={data.url}>
         {body}
       </Link>
     );
   }
 
   return (
-    <div className={className} style={style}>
+    <div className={className}>
       {body}
     </div>
   );
