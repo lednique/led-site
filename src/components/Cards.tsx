@@ -1,5 +1,5 @@
 import { useI18n } from "../i18n";
-import { cardSurface, isLightColor } from "../lib/color";
+import { cardSurface } from "../lib/color";
 import { resolveSrc } from "../media";
 import type { Publication, SocialItem } from "../types";
 import { LinkIcon } from "./Icons";
@@ -12,13 +12,12 @@ type CardProps = {
 
 export function PublicationCard({ item, onOpen, isOpen }: CardProps) {
   const { loc } = useI18n();
-  const light = isLightColor(item.color);
   const isLink = item.type === "link";
 
   return (
     <button
       type="button"
-      className={`card${isLink ? " card--link" : " card--article"}${light ? " is-light" : ""}${isOpen ? " is-open" : ""}`}
+      className={`card${isLink ? " card--link" : " card--article"}${isOpen ? " is-open" : ""}`}
       style={cardSurface(item.color)}
       onClick={onOpen}
     >
@@ -64,7 +63,7 @@ export function SocialCard({ items }: { items: SocialItem[] }) {
   return (
     <div className="social-card">
       <div className="card-body">
-        <div className="card-title">{t("Socials", "Соцсети")}</div>
+        <div className="card-title">{t("Social Networks", "Соцсети")}</div>
         <div className="social-well">
           {items.slice(0, 6).map((s) => (
             <a key={s.id} className="social-dot" href={s.url} target="_blank" rel="noreferrer" aria-label={s.label.en}>

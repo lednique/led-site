@@ -628,13 +628,9 @@ function setMeta(name: string, content: string) {
 /**
  * Цвет статус-бара / панели вкладок.
  *
- * Раньше на мобиле Safari красился в цвет из панели управления (чёрный),
- * чтобы сливаться с сайтом — это выглядело как чёрная полоса, прикреплённая
- * снизу. По запросу заказчика чёрную полосу убираем совсем:
- * - viewport-fit=cover убран из index.html, контент больше не уходит под
- *   нижнюю панель браузера;
- * - theme-color на мобиле не ставим в чёрный, оставляем системный;
- * - apple статус-бар делаем default, без подложки.
+ * На мобильном верхняя системная область должна оставаться непрозрачно
+ * чёрной во время прокрутки: карточки не должны быть видны под статус-баром.
+ * Safe-area дополнительно закрывается элементом .status-bar-fill.
  */
 export function useThemeColor() {
   const data = useSite();
@@ -644,16 +640,16 @@ export function useThemeColor() {
     const mq = window.matchMedia(MOBILE_QUERY);
 
     const apply = () => {
-      // Нижняя системная панель браузера не красится в чёрный (это выглядело
-      // как прикреплённая полоса). Градиент баннера TraceBase при этом живёт
-      // в .banner--rail::after и его нельзя отключать вместе с этой полосой.
+      // На мобильном отдельно закрываем верхнюю системную область. Градиент
+      // баннера TraceBase при этом живёт в .banner--rail::after и его нельзя
+      // отключать вместе со статус-баром.
       if (mq.matches) {
-        // Мобила: чёрную полосу убираем — нижнюю панель браузера оставляем системной.
-        // Раньше тут стоял цвет из панели (чёрный), который красил панель Safari в чёрный.
-        setMeta("theme-color", "#ffffff");
-        setMeta("msapplication-navbutton-color", "#ffffff");
-        document.documentElement.style.setProperty("--status-bar", "transparent");
-        setMeta("apple-mobile-web-app-status-bar-style", "default");
+        // Верхняя системная область должна быть непрозрачно чёрной: иначе
+        // при прокрутке карточки могут просачиваться под статус-бар.
+        setMeta("theme-color", "#000000");
+        setMeta("msapplication-navbutton-color", "#000000");
+        document.documentElement.style.setProperty("--status-bar", "#000000");
+        setMeta("apple-mobile-web-app-status-bar-style", "black");
       } else {
         const color = "#000000";
         setMeta("theme-color", color);

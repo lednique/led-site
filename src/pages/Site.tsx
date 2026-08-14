@@ -50,6 +50,70 @@ export function SitePage() {
     setMenuOpen(false);
   }, [id, page]);
 
+  // На мобильном основная лента должна оставаться на месте, пока поверх неё
+  // открыт просмотр статьи. Сам .stage-reader при этом остаётся единственным
+  // scroll-контейнером, поэтому длинные статьи продолжают прокручиваться.
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 799px)");
+    const html = document.documentElement;
+    const body = document.body;
+    let locked = false;
+    let savedScrollX = 0;
+    let savedScrollY = 0;
+    const previous = {
+      htmlOverflow: html.style.overflow,
+      bodyPosition: body.style.position,
+      bodyTop: body.style.top,
+      bodyLeft: body.style.left,
+      bodyRight: body.style.right,
+      bodyWidth: body.style.width,
+      bodyOverflow: body.style.overflow,
+    };
+
+    function lockPage() {
+      if (locked) return;
+      locked = true;
+      savedScrollX = window.scrollX;
+      savedScrollY = window.scrollY;
+      html.classList.add("mobile-article-open");
+      body.classList.add("mobile-article-open");
+      html.style.overflow = "hidden";
+      body.style.position = "fixed";
+      body.style.top = `-${savedScrollY}px`;
+      body.style.left = `-${savedScrollX}px`;
+      body.style.right = "0";
+      body.style.width = "100%";
+      body.style.overflow = "hidden";
+    }
+
+    function unlockPage() {
+      if (!locked) return;
+      html.classList.remove("mobile-article-open");
+      body.classList.remove("mobile-article-open");
+      html.style.overflow = previous.htmlOverflow;
+      body.style.position = previous.bodyPosition;
+      body.style.top = previous.bodyTop;
+      body.style.left = previous.bodyLeft;
+      body.style.right = previous.bodyRight;
+      body.style.width = previous.bodyWidth;
+      body.style.overflow = previous.bodyOverflow;
+      window.scrollTo(savedScrollX, savedScrollY);
+      locked = false;
+    }
+
+    function syncLock() {
+      if (open && media.matches) lockPage();
+      else unlockPage();
+    }
+
+    syncLock();
+    media.addEventListener("change", syncLock);
+    return () => {
+      media.removeEventListener("change", syncLock);
+      unlockPage();
+    };
+  }, [open]);
+
   if (!ready) {
     return <SiteLoader />;
   }

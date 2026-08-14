@@ -131,9 +131,10 @@ body,
 }
 
 /* ——— статус-бар PWA ———
-   Раньше бар был прозрачный (black-translucent) и контент уходил под него,
-   подложка закрывала вырез. Сейчас viewport-fit=cover убран и чёрная полоса
-   снизу убрана по запросу — подложка скрыта, статус-бар системный. */
+   В мобильной ленте верхний safe-area должен оставаться непрозрачным:
+   иначе при прокрутке карточки видны через системный статус-бар. Сам блок
+   не занимает место в потоке и рисуется поверх страницы, когда браузер
+   действительно сообщает размер safe-area. */
 .status-bar-fill {
   display: none;
   position: fixed;
@@ -141,10 +142,11 @@ body,
   left: 0;
   right: 0;
   height: env(safe-area-inset-top, 0px);
-  background: var(--status-bar);
+  background: #000;
   pointer-events: none;
-  z-index: 2000;
+  z-index: 2147483647;
 }
+
 
 button,
 input,
@@ -526,13 +528,9 @@ img {
   box-shadow: var(--card-inset);
 }
 
-.card.is-light,
-.card.is-light .card-title {
-  color: #000;
-}
-
 .card-title {
   width: 130px;
+  color: #fff;
   font-size: 14px;
   font-weight: 600;
   line-height: 1.2;
@@ -661,7 +659,11 @@ img {
 }
 
 .social-card {
-  background: radial-gradient(circle 110px at 50% -10px, #d0d0d0 0%, #62747f 100%);
+  /* Тот же светлый радиальный градиент, что лежит под карточками статей,
+     но без цветовой/multiply-подложки и без смешивания с фоном. */
+  background: radial-gradient(circle 110px at 50% -10px, #d0d0d0 0%, #111111 100%);
+  background-blend-mode: normal;
+  mix-blend-mode: normal;
 }
 
 .social-card .card-title {
@@ -1023,19 +1025,60 @@ img {
   overflow: hidden;
 }
 
+.stage-close {
+  position: absolute;
+  top: 28px;
+  right: 36px;
+  z-index: 10;
+}
+
 .stage-reader {
   position: relative;
   z-index: 1;
   height: 100%;
   overflow: auto;
-  padding: 28px 36px 48px;
+  --reader-pad-top: 28px;
+  --reader-pad-bottom: 120px;
+  padding: var(--reader-pad-top) 36px var(--reader-pad-bottom);
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.72) 100%);
   /* Горизонтальный padding родителя. Картинки используют его в расчёте
      «вылазящего» размера на мобильной, чтобы стать edge-to-edge. */
   --reader-pad-x: 36px;
 }
 
+/* Верхняя подложка закреплена на самой верхней границе stage, а не в
+   потоке статьи. Поэтому она начинается от верхнего края сайта и остаётся
+   под кнопками desktop-menu и закрытия. */
+.stage-topfade {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 100px;
+  z-index: 5;
+  /* Полностью чёрный у верхней границы, затем плотный участок и плавный
+     уход до полной прозрачности к низу. */
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) 20%,
+    rgba(0, 0, 0, 0) 100%
+  );
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.stage-topfade.is-on {
+  opacity: 1;
+}
+
 .article-top {
+  position: sticky;
+  top: 0;
+  /* Подложка stage-reader должна действительно перекрывать текст при
+     прокрутке, поэтому сам контекст статьи остаётся под ней. */
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1374,6 +1417,18 @@ img {
 }
 
 @media (max-width: 799px) {
+  /* Пока открыта статья, документ не должен получать scroll-chain от
+     внутреннего просмотрщика. Сам .stage-reader имеет собственный скролл. */
+  html.mobile-article-open,
+  body.mobile-article-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
+  .status-bar-fill {
+    display: block;
+  }
+
   /* Скроллит viewport, не внутренние контейнеры. overflow:auto/hidden
      на body/#root создаёт scrollport высотой с контент — sticky
      «липнет» внутри него и уезжает вместе со страницей. clip на html
@@ -1632,20 +1687,38 @@ img {
     z-index: 60;
     height: 100dvh;
     background: #000;
-    overflow: auto;
+    /* Скроллится только .stage-reader. Если скроллить сам sheet, некоторые
+       мобильные WebKit двигают fixed-потомка вместе со статьёй. */
+    overflow: hidden;
+    overscroll-behavior: contain;
   }
 
   .mobile-sheet .stage {
     display: block;
     position: relative;
-    min-height: 100%;
-    height: auto;
-    overflow: visible;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .mobile-sheet .stage-close {
+    /* Кнопка находится вне scrollport статьи и всегда остаётся на одном
+       месте относительно окна просмотра. */
+    position: fixed;
+    top: calc(28px + env(safe-area-inset-top, 0px));
+    right: 36px;
+    z-index: 10;
   }
 
   .mobile-sheet .stage-reader {
-    min-height: 100%;
+    height: 100%;
+    min-height: 0;
+    --reader-pad-top: calc(28px + env(safe-area-inset-top, 0px));
+    --reader-pad-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
+    padding-top: var(--reader-pad-top);
+    padding-bottom: var(--reader-pad-bottom);
     background: #000;
+    overscroll-behavior: contain;
     /* --reader-pad-x должен совпадать с горизонтальным padding .stage-reader
        на мобильной (36px), иначе картинка не достанет до края экрана.
        Текст остаётся в колонке 36px, фото уезжает к самому краю. */
@@ -1713,9 +1786,17 @@ img {
     justify-content: flex-end;
   }
 
-  /* Статья не заезжает под ряд кнопок. */
+  /* Кнопка закрытия на той же горизонтали, что и кнопки верхнего меню,
+     но с левой стороны области статьи. */
+  .stage-close {
+    top: 25px;
+    left: 36px;
+    right: auto;
+  }
+
   .stage-reader {
-    padding-top: 72px;
+    --reader-pad-top: 72px;
+    padding-top: var(--reader-pad-top);
   }
 
   /* Подвал лежит вне .site (внутри .page), поэтому повторяем ширину и
