@@ -1,5 +1,5 @@
 import { useI18n } from "../i18n";
-import { cardSurface, isLightColor } from "../lib/color";
+import { cardSurface } from "../lib/color";
 import { resolveSrc } from "../media";
 import type { Publication, SocialItem } from "../types";
 import { LinkIcon } from "./Icons";
@@ -12,13 +12,12 @@ type CardProps = {
 
 export function PublicationCard({ item, onOpen, isOpen }: CardProps) {
   const { loc } = useI18n();
-  const light = isLightColor(item.color);
   const isLink = item.type === "link";
 
   return (
     <button
       type="button"
-      className={`card${isLink ? " card--link" : " card--article"}${light ? " is-light" : ""}${isOpen ? " is-open" : ""}`}
+      className={`card${isLink ? " card--link" : " card--article"}${isOpen ? " is-open" : ""}`}
       style={cardSurface(item.color)}
       onClick={onOpen}
     >

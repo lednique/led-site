@@ -4,15 +4,12 @@ import { pickLocale, useI18n } from "../i18n";
 import { MarkdownView } from "../lib/markdown";
 import { resolveSrc } from "../media";
 import type { ArticleBlock, Publication } from "../types";
-import { CloseIcon } from "./Icons";
-import { NavButton } from "./NavButton";
 
 type ArticleViewProps = {
   pub: Publication;
-  onClose: () => void;
 };
 
-export function ArticleView({ pub, onClose }: ArticleViewProps) {
+export function ArticleView({ pub }: ArticleViewProps) {
   const { locale, loc, t } = useI18n();
   const blocks = pickLocale(locale, pub.blocks, pub.enEnabled);
   const tag = pub.hashtags[0];
@@ -21,9 +18,6 @@ export function ArticleView({ pub, onClose }: ArticleViewProps) {
     <article className="article">
       <div className="article-top">
         <p className="stage-kicker">{tag ? `#${tag}` : t("Article", "Статья")}</p>
-        <NavButton label="Close" onClick={onClose}>
-          <CloseIcon />
-        </NavButton>
       </div>
       <h1 className="stage-title">{loc(pub.title)}</h1>
       <div className="article-blocks">
