@@ -522,6 +522,19 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
+.ad-embed-block {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ad-embed-preview {
+  padding: 12px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  overflow: auto;
+}
+
 .ad-anim-badge {
   position: absolute;
   top: 6px;

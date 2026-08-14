@@ -34,7 +34,9 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
             ? { id, type, src: "", alt: "" }
             : type === "link"
               ? { id, type, label: "Открыть", url: "https://", style: "solid" }
-              : { id, type };
+              : type === "embed"
+                ? { id, type, code: "" }
+                : { id, type };
     onChange([...blocks, block]);
   }
 
@@ -53,6 +55,9 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
         <button type="button" onClick={() => add("link")}>
           + Кнопка-ссылка
         </button>
+        <button type="button" onClick={() => add("embed")}>
+          + Embed code
+        </button>
         <button type="button" onClick={() => add("form")}>
           + Форма
         </button>
@@ -68,9 +73,11 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                   ? "Текст"
                   : block.type === "image"
                     ? "Изображение"
-                    : block.type === "link"
-                      ? "Кнопка-ссылка"
-                      : "Форма"}
+                : block.type === "link"
+                  ? "Кнопка-ссылка"
+                  : block.type === "embed"
+                    ? "Embed code"
+                    : "Форма"}
             </strong>
             <div className="ad-block-actions">
               <button type="button" disabled={index === 0} onClick={() => move(block.id, -1)}>
@@ -180,6 +187,28 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                   <LinkGlyph />
                 </span>
               </div>
+            </div>
+          )}
+
+          {block.type === "embed" && (
+            <div className="ad-embed-block">
+              <Field label="HTML / код интеграции">
+                <TextArea
+                  rows={6}
+                  value={block.code}
+                  onChange={(e) => update(block.id, { code: e.target.value })}
+                  placeholder={'<iframe src="https://…" width="100%" height="400"></iframe>'}
+                />
+              </Field>
+              <p className="ad-hint">
+                Вставьте код встраивания стороннего сервиса (iframe, виджет, плеер…). Код общий для обеих
+                языковых версий.
+              </p>
+              {block.code.trim() && (
+                <div className="ad-embed-preview">
+                  <div className="block-embed" dangerouslySetInnerHTML={{ __html: block.code }} />
+                </div>
+              )}
             </div>
           )}
 

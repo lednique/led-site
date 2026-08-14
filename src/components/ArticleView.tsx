@@ -53,6 +53,17 @@ export function ArticleView({ pub, onClose }: ArticleViewProps) {
           if (block.type === "link") {
             return <ArticleLink key={block.id} block={block} />;
           }
+          if (block.type === "embed") {
+            // Вставной HTML сторонних сервисов (iframe, виджеты, плееры…).
+            // Контент авторский — добавляется только из панели управления.
+            return (
+              <div
+                key={block.id}
+                className="block-embed"
+                dangerouslySetInnerHTML={{ __html: block.code }}
+              />
+            );
+          }
           return <ContactForm key={block.id} />;
         })}
       </div>

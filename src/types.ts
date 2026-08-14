@@ -1,4 +1,4 @@
-export type BlockType = "heading" | "text" | "image" | "link" | "form";
+export type BlockType = "heading" | "text" | "image" | "link" | "form" | "embed";
 
 export type Locale = "en" | "ru";
 
@@ -9,7 +9,8 @@ export type ArticleBlock =
   | { id: string; type: "text"; markdown: string }
   | { id: string; type: "image"; src: string; alt: string }
   | { id: string; type: "link"; label: string; url: string; style?: "solid" | "ghost" }
-  | { id: string; type: "form" };
+  | { id: string; type: "form" }
+  | { id: string; type: "embed"; code: string };
 
 export type Publication = {
   id: string;

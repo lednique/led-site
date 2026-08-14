@@ -223,9 +223,11 @@ export function sortedPublications(data: SiteData = state): Publication[] {
 }
 
 export function visiblePublications(data: SiteData, locale: Locale): Publication[] {
-  return sortedPublications(data)
-    .filter((p) => (locale === "en" ? p.enEnabled : true))
-    .sort((a, b) => b.createdAt - a.createdAt);
+  // Порядок задаётся полем order (его меняют кнопки ↑/↓ в панели), поэтому
+  // берём уже отсортированный sortedPublications и только фильтруем по языку.
+  // Раньше тут стоял повторный .sort по createdAt — он затирал order и
+  // перестановка карточек в панели не отображалась на сайте.
+  return sortedPublications(data).filter((p) => (locale === "en" ? p.enEnabled : true));
 }
 
 export function getPublication(id: string | undefined): Publication | undefined {
