@@ -63,7 +63,7 @@ export function SocialCard({ items }: { items: SocialItem[] }) {
   return (
     <div className="social-card">
       <div className="card-body">
-        <div className="card-title">{t("Socials", "Соцсети")}</div>
+        <div className="card-title">{t("Social Networks", "Соцсети")}</div>
         <div className="social-well">
           {items.slice(0, 6).map((s) => (
             <a key={s.id} className="social-dot" href={s.url} target="_blank" rel="noreferrer" aria-label={s.label.en}>

@@ -1,4 +1,4 @@
-import { useState, type UIEvent } from "react";
+import { useEffect, useState, type UIEvent } from "react";
 import type { BannerData, Publication } from "../types";
 import { ArticleView } from "./ArticleView";
 import { Banner } from "./Banner";
@@ -13,6 +13,10 @@ type StageProps = {
 
 export function Stage({ banner, article, onClose }: StageProps) {
   const [readerScrolled, setReaderScrolled] = useState(false);
+
+  useEffect(() => {
+    setReaderScrolled(false);
+  }, [article?.id]);
 
   function handleReaderScroll(event: UIEvent<HTMLDivElement>) {
     const next = event.currentTarget.scrollTop > 0;
@@ -29,6 +33,7 @@ export function Stage({ banner, article, onClose }: StageProps) {
             </NavButton>
           </div>
           <div
+            key={article.id}
             className={`stage-reader${readerScrolled ? " is-scrolled" : ""}`}
             onScroll={handleReaderScroll}
           >

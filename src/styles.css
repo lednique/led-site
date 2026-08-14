@@ -133,8 +133,9 @@ body,
 /* ——— статус-бар PWA ———
    В мобильной ленте верхний safe-area должен оставаться непрозрачным:
    иначе при прокрутке карточки видны через системный статус-бар. Сам блок
-   не занимает место в потоке и становится нулевой высоты там, где safe-area
-   отсутствует (обычный мобильный браузер). */
+   не занимает место в потоке и рисуется поверх страницы. На устройствах,
+   где safe-area не отдаётся браузеру, мобильное правило добавляет небольшой
+   минимальный защитный слой. */
 .status-bar-fill {
   display: none;
   position: fixed;
@@ -659,9 +660,11 @@ img {
 }
 
 .social-card {
-  /* Базовый градиент карточек статей без цветовой/multiply-подложки. */
+  /* Тот же светлый радиальный градиент, что лежит под карточками статей,
+     но без цветовой/multiply-подложки и без смешивания с фоном. */
   background: radial-gradient(circle 110px at 50% -10px, #d0d0d0 0%, #111111 100%);
   background-blend-mode: normal;
+  mix-blend-mode: normal;
 }
 
 .social-card .card-title {
@@ -1036,7 +1039,7 @@ img {
   height: 100%;
   overflow: auto;
   --reader-pad-top: 28px;
-  --reader-pad-bottom: 70px;
+  --reader-pad-bottom: 120px;
   padding: var(--reader-pad-top) 36px var(--reader-pad-bottom);
   background: linear-gradient(90deg, rgba(0, 0, 0, 0.15) 0%, rgba(0, 0, 0, 0.72) 100%);
   /* Горизонтальный padding родителя. Картинки используют его в расчёте
@@ -1045,19 +1048,19 @@ img {
 }
 
 /* Верхняя подложка остаётся в окне прокрутки и включается только после
-   первого движения. Она затемняет первые 60 px контекста, но находится
+   первого движения. Она перекрывает первые 100 px контекста, но находится
    ниже закреплённой кнопки закрытия и desktop-menu. */
 .stage-reader::before {
   content: "";
   position: sticky;
   top: 0;
-  z-index: 3;
+  z-index: 5;
   display: block;
   width: calc(100% + 2 * var(--reader-pad-x));
-  height: 60px;
+  height: 100px;
   margin-top: calc(-1 * var(--reader-pad-top));
   margin-right: 0;
-  margin-bottom: calc(var(--reader-pad-top) - 60px);
+  margin-bottom: calc(var(--reader-pad-top) - 100px);
   margin-left: calc(-1 * var(--reader-pad-x));
   background: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0) 100%);
   opacity: 0;
@@ -1072,7 +1075,9 @@ img {
 .article-top {
   position: sticky;
   top: 0;
-  z-index: 4;
+  /* Подложка stage-reader должна действительно перекрывать текст при
+     прокрутке, поэтому сам контекст статьи остаётся под ней. */
+  z-index: 1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1673,18 +1678,22 @@ img {
     z-index: 60;
     height: 100dvh;
     background: #000;
-    overflow: auto;
+    /* Скроллится только .stage-reader. Если скроллить сам sheet, некоторые
+       мобильные WebKit двигают fixed-потомка вместе со статьёй. */
+    overflow: hidden;
   }
 
   .mobile-sheet .stage {
     display: block;
     position: relative;
-    min-height: 100%;
-    height: auto;
-    overflow: visible;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
   }
 
   .mobile-sheet .stage-close {
+    /* Кнопка находится вне scrollport статьи и всегда остаётся на одном
+       месте относительно окна просмотра. */
     position: fixed;
     top: calc(28px + env(safe-area-inset-top, 0px));
     right: 36px;
@@ -1692,9 +1701,10 @@ img {
   }
 
   .mobile-sheet .stage-reader {
-    min-height: 100%;
+    height: 100%;
+    min-height: 0;
     --reader-pad-top: calc(28px + env(safe-area-inset-top, 0px));
-    --reader-pad-bottom: calc(70px + env(safe-area-inset-bottom, 0px));
+    --reader-pad-bottom: calc(120px + env(safe-area-inset-bottom, 0px));
     padding-top: var(--reader-pad-top);
     padding-bottom: var(--reader-pad-bottom);
     background: #000;
@@ -1704,9 +1714,8 @@ img {
     --reader-pad-x: 36px;
   }
 
-  .mobile-sheet .stage-reader::before,
-  .mobile-sheet .article-top {
-    top: env(safe-area-inset-top, 0px);
+  .mobile-sheet .stage-reader::before {
+    top: 0;
   }
 
   .sidebar {
@@ -1729,6 +1738,13 @@ img {
    теперь viewport-fit=cover убран, чёрная полоса снизу полностью убрана,
    safe-area учитываем только чтобы не прятать контент под вырезы. */
 @media (max-width: 799px) and (display-mode: standalone) {
+  .status-bar-fill {
+    /* В некоторых standalone-браузерах safe-area-inset-top равен 0,
+       хотя системный статус-бар всё равно рисуется поверх страницы. */
+    height: 24px;
+    height: max(24px, env(safe-area-inset-top, 0px));
+  }
+
   .page {
     padding-top: env(safe-area-inset-top, 0px);
     padding-bottom: env(safe-area-inset-bottom, 0px);
