@@ -1057,7 +1057,14 @@ img {
   right: 0;
   height: 100px;
   z-index: 5;
-  background: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0) 100%);
+  /* Полностью чёрный у верхней границы, затем плотный участок и плавный
+     уход до полной прозрачности к низу. */
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 1) 0%,
+    rgba(0, 0, 0, 1) 20%,
+    rgba(0, 0, 0, 0) 100%
+  );
   opacity: 0;
   pointer-events: none;
   transition: opacity 180ms ease;
