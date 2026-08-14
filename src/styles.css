@@ -1418,6 +1418,14 @@ img {
 }
 
 @media (max-width: 799px) {
+  /* Пока открыта статья, документ не должен получать scroll-chain от
+     внутреннего просмотрщика. Сам .stage-reader имеет собственный скролл. */
+  html.mobile-article-open,
+  body.mobile-article-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   .status-bar-fill {
     display: block;
   }
@@ -1683,6 +1691,7 @@ img {
     /* Скроллится только .stage-reader. Если скроллить сам sheet, некоторые
        мобильные WebKit двигают fixed-потомка вместе со статьёй. */
     overflow: hidden;
+    overscroll-behavior: contain;
   }
 
   .mobile-sheet .stage {
@@ -1710,6 +1719,7 @@ img {
     padding-top: var(--reader-pad-top);
     padding-bottom: var(--reader-pad-bottom);
     background: #000;
+    overscroll-behavior: contain;
     /* --reader-pad-x должен совпадать с горизонтальным padding .stage-reader
        на мобильной (36px), иначе картинка не достанет до края экрана.
        Текст остаётся в колонке 36px, фото уезжает к самому краю. */
