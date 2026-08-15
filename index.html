@@ -11,11 +11,14 @@
     <link rel="apple-touch-icon" sizes="152x152" href="/apple-touch-icon-152.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#000000" />
+    <meta name="msapplication-navbutton-color" content="#000000" />
     <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="LEDNIQUE" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <!-- iOS читает этот meta при запуске PWA, поэтому задаём чёрный цвет сразу,
+         без ожидания React-хука: статус-бар не должен быть прозрачным. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <title>LEDNIQUE</title>
     <meta
       name="description"

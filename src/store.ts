@@ -1,6 +1,5 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { defaultSite, MENU_PAGES, mergePages, SITE_VERSION } from "./defaults";
-import { isLightColor } from "./lib/color";
 import { supabase } from "./lib/supabase";
 import { ensureRemoteSrc } from "./lib/upload";
 import type { ArticleBlock, BannerData, Locale, PageContent, Publication, SiteData, SitePages } from "./types";
@@ -655,10 +654,9 @@ export function useThemeColor() {
         setMeta("theme-color", color);
         setMeta("msapplication-navbutton-color", color);
         document.documentElement.style.setProperty("--status-bar", color);
-        setMeta(
-          "apple-mobile-web-app-status-bar-style",
-          isLightColor(themeColor) ? "default" : "black-translucent",
-        );
+        // Не используем black-translucent: на iOS он делает системную область
+        // прозрачной, и при прокрутке через неё проглядывает контент.
+        setMeta("apple-mobile-web-app-status-bar-style", "black");
       }
     };
 
