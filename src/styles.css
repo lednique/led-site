@@ -1143,7 +1143,9 @@ img {
    снимки идут вертикальной лентой с шагом 15 px, растянутые на всю ширину
    блока статей. Каждый отдельный кадр — горизонтальный scrollport. Это
    позволяет показать фото целиком по высоте, не обрезая широкие работы по
-   правому краю. */
+   правому краю. Подпись к фото (.google-photos-caption) стилизована под
+   обычный текст статьи и отображается только когда в Google Photos у снимка
+   есть описание. */
 .google-photos-gallery {
   display: flex;
   flex-direction: column;
@@ -1151,6 +1153,14 @@ img {
   width: 100%;
   min-width: 0;
   gap: 15px;
+}
+
+.google-photos-item {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
 }
 
 .google-photos-frame {
@@ -1161,6 +1171,21 @@ img {
   overflow: hidden;
   border-radius: 36px;
   background: #fff;
+}
+
+.google-photos-caption {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.86);
+  padding: 0;
+  /* На десктопе подпись центрируется вместе с текстом статьи, не растягиваясь
+     на всю ширину галереи (та же логика, что у .block-image). */
+  align-self: center;
+  max-width: 800px;
+  width: 100%;
+  -webkit-user-select: text;
+  user-select: text;
 }
 
 .google-photos-scroll {
@@ -1273,8 +1298,18 @@ img {
   }
 
   .google-photos-frame {
+    /* На мобильной фрейм идёт от края до края сайта, но скругления
+       углов уменьшены до 24px согласно дизайну. */
     height: 250px;
     border-radius: 24px;
+  }
+
+  .google-photos-caption {
+    /* Подпись не уезжает к краям — возвращаем её в текстовую колонку. */
+    align-self: stretch;
+    max-width: none;
+    padding-left: var(--reader-pad-x, 36px);
+    padding-right: var(--reader-pad-x, 36px);
   }
 }
 

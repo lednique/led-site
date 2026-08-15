@@ -6,6 +6,8 @@ type PublicPhoto = {
   src: string;
   width: number;
   height: number;
+  /** Описание фотографии, заданное пользователем в Google Photos. Может отсутствовать. */
+  description: string;
 };
 
 type CacheEntry = {
@@ -69,7 +71,57 @@ function asNumber(value: unknown): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0 ? Math.round(value) : 0;
 }
 
-function toPhoto(id: unknown, src: unknown, width: unknown, height: unknown, fallbackId: string): PublicPhoto | null {
+/**
+ * Подпись к фото (description), которую пользователь задал в Google Photos,
+ * хранится строкой глубже в массиве деталей. Точной фиксированной позиции у
+ * поля нет — Google периодически сдвигает индексы, а подпись может лежать
+ * как в самом массиве detail, так и во вложенном под-массиве рядом с url/w/h.
+ * Поэтому рекурсивно обходим вложенные массивы и берём первую разумную
+ * человекочитаемую строку: не URL, не googleusercontent id, не закодированный
+ * blob с непечатаемыми символами, длиннее 1 символа.
+ */
+function extractDescription(node: unknown, depth = 0): string {
+  if (depth > 6) return "";
+  if (Array.isArray(node)) {
+    // Сначала просмотрим строки непосредственно в этом массиве — обычно
+    // description лежит близко к URL и размерам.
+    for (const entry of node) {
+      if (typeof entry !== "string") continue;
+      const candidate = isPlausibleDescription(entry);
+      if (candidate) return candidate;
+    }
+    // Потом — вложенные массивы (глубина ограничена выше).
+    for (const entry of node) {
+      if (Array.isArray(entry)) {
+        const nested = extractDescription(entry, depth + 1);
+        if (nested) return nested;
+      }
+    }
+  }
+  return "";
+}
+
+function isPlausibleDescription(raw: string): string {
+  const trimmed = raw.trim();
+  if (trimmed.length < 2) return "";
+  // Пропускаем URL, длинные id и закодированные технические строки.
+  if (/^https?:\/\//i.test(trimmed)) return "";
+  if (/^[a-z0-9_-]{20,}$/i.test(trimmed)) return "";
+  // Строки с большим количеством экранированных последовательностей — это
+  // сериализованные вложенные структуры, не подпись.
+  if ((trimmed.match(/\\u[0-9a-fA-F]{4}/g) || []).length > 4) return "";
+  // Описание не должно содержать управляющих символов (признак бинаря).
+  // eslint-disable-next-line no-control-regex
+  if (/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(trimmed)) return "";
+  // Пропускаем типичные служебные маркеры Google / mime / длину.
+  if (/^(AF_initDataCallback|data:image|video|application|com\.google|photo|album)/i.test(trimmed)) return "";
+  // Строки, состоящие сплошь из цифр и пунктуации (timestamps/числа), не подпись.
+  if (/^[\d.,;:!?\s-]+$/.test(trimmed)) return "";
+  if (trimmed.length > 1000) return "";
+  return trimmed;
+}
+
+function toPhoto(id: unknown, src: unknown, width: unknown, height: unknown, fallbackId: string, rawDetail?: unknown): PublicPhoto | null {
   const normalizedSrc = normalizeImageUrl(src);
   if (!normalizedSrc) return null;
   return {
@@ -77,6 +129,7 @@ function toPhoto(id: unknown, src: unknown, width: unknown, height: unknown, fal
     src: normalizedSrc,
     width: asNumber(width),
     height: asNumber(height),
+    description: extractDescription(rawDetail),
   };
 }
 
@@ -159,7 +212,7 @@ function photosFromKnownAlbumShape(data: unknown): PublicPhoto[] {
     const row = data[1][index];
     if (!Array.isArray(row) || !Array.isArray(row[1])) continue;
     const detail = row[1];
-    const photo = toPhoto(row[0], detail[0], detail[1], detail[2], `photo-${index}`);
+    const photo = toPhoto(row[0], detail[0], detail[1], detail[2], `photo-${index}`, detail);
     if (photo) photos.push(photo);
   }
 
@@ -167,28 +220,34 @@ function photosFromKnownAlbumShape(data: unknown): PublicPhoto[] {
 }
 
 /**
- * Fallback для небольших изменений внутренней разметки Google: находим в JSON5
- * массивы вида [url, width, height] независимо от глубины вложенности.
+ * Fallback для небольших изменений внутренней разметки Google: рекурсивно
+ * находим массивы вида [url, width, height], а описание подбираем из
+ * соседних строк родительского массива — именно там Google обычно кладёт
+ * подпись (description) в случае сдвига индексов в известной структуре.
  */
 function photosFromNestedImageDetails(data: unknown): PublicPhoto[] {
   const photos: PublicPhoto[] = [];
-  const stack: unknown[] = [data];
-  let visited = 0;
 
-  while (stack.length && photos.length < MAX_PHOTOS && visited < 100_000) {
-    const current = stack.pop();
-    visited += 1;
-    if (!Array.isArray(current)) continue;
+  function walk(node: unknown, parent: unknown[] | null, depth: number) {
+    if (depth > 8 || photos.length >= MAX_PHOTOS) return;
+    if (!Array.isArray(node)) return;
 
-    const photo = toPhoto(undefined, current[0], current[1], current[2], `photo-${photos.length}`);
-    if (photo) photos.push(photo);
+    const candidate = toPhoto(
+      undefined,
+      node[0],
+      node[1],
+      node[2],
+      `photo-${photos.length}`,
+      parent ?? node,
+    );
+    if (candidate) photos.push(candidate);
 
-    for (let index = current.length - 1; index >= 0; index -= 1) {
-      const child = current[index];
-      if (Array.isArray(child)) stack.push(child);
+    for (let index = node.length - 1; index >= 0; index -= 1) {
+      if (Array.isArray(node[index])) walk(node[index], node, depth + 1);
     }
   }
 
+  walk(data, null, 0);
   return photos;
 }
 
@@ -204,7 +263,7 @@ function photosFromHtmlUrls(html: string): PublicPhoto[] {
 
   for (const match of matches) {
     if (photos.length >= MAX_PHOTOS) break;
-    const photo = toPhoto(undefined, match, 0, 0, `photo-${photos.length}`);
+    const photo = toPhoto(undefined, match, 0, 0, `photo-${photos.length}`, null);
     if (photo) photos.push(photo);
   }
 

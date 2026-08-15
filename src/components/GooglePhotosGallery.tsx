@@ -6,6 +6,8 @@ type GooglePhoto = {
   src: string;
   width?: number;
   height?: number;
+  /** Описание, заданное пользователем в Google Photos. Пустая строка = нет подписи. */
+  description?: string;
 };
 
 type AlbumResponse = {
@@ -24,7 +26,13 @@ const pendingRequests = new Map<string, Promise<AlbumResponse>>();
 function isGooglePhoto(value: unknown): value is GooglePhoto {
   if (!value || typeof value !== "object") return false;
   const item = value as Partial<GooglePhoto>;
-  return typeof item.id === "string" && typeof item.src === "string" && item.src.startsWith("https://");
+  return (
+    typeof item.id === "string" &&
+    typeof item.src === "string" &&
+    item.src.startsWith("https://") &&
+    // description — опциональное поле; если оно есть, должно быть строкой.
+    (item.description === undefined || typeof item.description === "string")
+  );
 }
 
 async function fetchAlbum(album: string): Promise<AlbumResponse> {
@@ -165,28 +173,33 @@ function GalleryPhoto({ photo, index }: { photo: GooglePhoto; index: number }) {
     };
   }, [photo.src, updateOverflow]);
 
+  const caption = photo.description?.trim() ?? "";
+
   return (
-    <div className="google-photos-frame">
-      <div
-        ref={scrollRef}
-        className="google-photos-scroll"
-        onScroll={updateOverflow}
-        aria-label={t(`Photo ${index + 1}`, `Фото ${index + 1}`)}
-        tabIndex={0}
-      >
-        <img
-          className="google-photos-image"
-          src={sizedGooglePhotoSrc(photo.src)}
-          alt=""
-          draggable={false}
-          loading="lazy"
-          decoding="async"
-          onLoad={updateOverflow}
-          onDragStart={(event) => event.preventDefault()}
-        />
+    <figure className="google-photos-item">
+      <div className="google-photos-frame">
+        <div
+          ref={scrollRef}
+          className="google-photos-scroll"
+          onScroll={updateOverflow}
+          aria-label={t(`Photo ${index + 1}`, `Фото ${index + 1}`)}
+          tabIndex={0}
+        >
+          <img
+            className="google-photos-image"
+            src={sizedGooglePhotoSrc(photo.src)}
+            alt={caption}
+            draggable={false}
+            loading="lazy"
+            decoding="async"
+            onLoad={updateOverflow}
+            onDragStart={(event) => event.preventDefault()}
+          />
+        </div>
+        {hasMoreToRight && <GalleryScrollHint />}
       </div>
-      {hasMoreToRight && <GalleryScrollHint />}
-    </div>
+      {caption && <figcaption className="google-photos-caption">{caption}</figcaption>}
+    </figure>
   );
 }
 
