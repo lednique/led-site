@@ -142,7 +142,21 @@ function ContactForm() {
         error?: string;
       };
       if (!resp.ok || !result.success) {
-        throw new Error(result.error || `HTTP ${resp.status}`);
+        console.error("[contact-form] api error", resp.status, result.error);
+        setError(
+          resp.status === 429
+            ? t("Too many attempts. Please try again later.", "Слишком много попыток. Попробуйте позже.")
+            : resp.status === 503
+              ? t(
+                  "The message service is not configured yet. Please try again later.",
+                  "Сервис отправки ещё не настроен. Попробуйте позже.",
+                )
+              : t(
+                  "Could not send. Please try again later.",
+                  "Не удалось отправить. Попробуйте позже.",
+                ),
+        );
+        return;
       }
       form.reset();
       setSent(true);
