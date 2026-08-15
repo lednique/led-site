@@ -57,7 +57,8 @@ async function fetchAlbum(album: string): Promise<AlbumResponse> {
 
 /**
  * Google отдаёт публичные ссылки без размера. Добавляем высоту, достаточную
- * для 400 CSS px на экранах с высокой плотностью, не загружая оригинал.
+ * для 340 CSS px на экранах с высокой плотностью, не загружая оригинал.
+ * h1200 покрывает и 250px мобильную высоту с запасом под retina.
  */
 function sizedGooglePhotoSrc(src: string): string {
   const hashAt = src.indexOf("#");

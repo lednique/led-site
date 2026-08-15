@@ -1140,23 +1140,23 @@ img {
 
 /* ——— Галерея Google Photos в статье ———
    Галерея остаётся в потоке статьи, поэтому её общая высота не ограничена:
-   снимки идут вертикальной лентой с шагом 10 px. Каждый отдельный кадр —
-   горизонтальный scrollport. Это позволяет показать фото целиком по высоте,
-   не обрезая широкие работы по правому краю. */
+   снимки идут вертикальной лентой с шагом 15 px, растянутые на всю ширину
+   блока статей. Каждый отдельный кадр — горизонтальный scrollport. Это
+   позволяет показать фото целиком по высоте, не обрезая широкие работы по
+   правому краю. */
 .google-photos-gallery {
   display: flex;
   flex-direction: column;
-  align-self: center;
+  align-self: stretch;
   width: 100%;
-  max-width: 800px;
   min-width: 0;
-  gap: 10px;
+  gap: 15px;
 }
 
 .google-photos-frame {
   position: relative;
   width: 100%;
-  height: 400px;
+  height: 340px;
   min-width: 0;
   overflow: hidden;
   border-radius: 36px;
@@ -1265,8 +1265,16 @@ img {
     margin-right: calc(-1 * var(--reader-pad-x, 36px));
   }
 
+  .google-photos-gallery {
+    width: calc(100% + 2 * var(--reader-pad-x, 36px));
+    max-width: none;
+    margin-left: calc(-1 * var(--reader-pad-x, 36px));
+    margin-right: calc(-1 * var(--reader-pad-x, 36px));
+  }
+
   .google-photos-frame {
     height: 250px;
+    border-radius: 24px;
   }
 }
 
