@@ -249,7 +249,9 @@ async function fetchSharedAlbumHtml(start: URL): Promise<string> {
         signal: controller.signal,
         headers: {
           Accept: "text/html,application/xhtml+xml",
-          "User-Agent": "Mozilla/5.0 (compatible; LEDNIQUE-Gallery/1.0)",
+          // Обычный браузерный UA нужен, чтобы Google отдал HTML share-страницы
+          // с AF_initDataCallback, а не упрощённую страницу для робота.
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
         },
       });
 
