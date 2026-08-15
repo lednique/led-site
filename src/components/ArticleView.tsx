@@ -107,12 +107,56 @@ function ArticleLink({ block }: { block: Extract<ArticleBlock, { type: "link" }>
 }
 
 function ContactForm() {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const [sent, setSent] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [error, setError] = useState("");
 
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setSent(true);
+    if (sending) return;
+
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const payload = {
+      name: String(data.get("name") ?? "").trim(),
+      email: String(data.get("email") ?? "").trim(),
+      message: String(data.get("message") ?? "").trim(),
+      company: String(data.get("company") ?? ""),
+      page: typeof window === "undefined" ? "" : window.location.href,
+      locale,
+    };
+
+    if (!payload.name || !payload.email || !payload.message) return;
+
+    setSending(true);
+    setError("");
+    try {
+      const resp = await fetch("/api/commission", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const result = (await resp.json().catch(() => ({}))) as {
+        success?: boolean;
+        error?: string;
+      };
+      if (!resp.ok || !result.success) {
+        throw new Error(result.error || `HTTP ${resp.status}`);
+      }
+      form.reset();
+      setSent(true);
+    } catch (err) {
+      console.error("[contact-form]", err);
+      setError(
+        t(
+          "Could not send. Please try again later.",
+          "Не удалось отправить. Попробуйте позже.",
+        ),
+      );
+    } finally {
+      setSending(false);
+    }
   }
 
   if (sent) {
@@ -120,21 +164,34 @@ function ContactForm() {
   }
 
   return (
-    <form className="glass-form" onSubmit={handleSubmit}>
+    <form className="glass-form" onSubmit={handleSubmit} noValidate={false}>
       <label>
         {t("Name", "Имя")}
-        <input name="name" required autoComplete="name" />
+        <input name="name" required autoComplete="name" disabled={sending} />
       </label>
       <label>
         {t("Email", "Почта")}
-        <input name="email" type="email" required autoComplete="email" />
+        <input name="email" type="email" required autoComplete="email" disabled={sending} />
       </label>
       <label>
         {t("Message", "Сообщение")}
-        <textarea name="message" rows={4} required />
+        <textarea name="message" rows={4} required disabled={sending} />
       </label>
-      <button className="submit-btn" type="submit">
-        {t("Send", "Отправить")}
+      {/* honeypot — невидимое поле, заполняют только спам-боты */}
+      <input
+        className="form-honeypot"
+        name="company"
+        tabIndex={-1}
+        autoComplete="off"
+        aria-hidden="true"
+      />
+      {error ? (
+        <p className="form-error" role="alert">
+          {error}
+        </p>
+      ) : null}
+      <button className="submit-btn" type="submit" disabled={sending}>
+        {sending ? t("Sending…", "Отправляем…") : t("Send", "Отправить")}
       </button>
     </form>
   );
