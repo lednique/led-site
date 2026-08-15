@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
-import JSON5 from "json5";
 
 type PublicPhoto = {
   id: string;
@@ -17,10 +16,18 @@ type CacheEntry = {
 
 const CACHE_TTL = 5 * 60 * 1000;
 const MAX_PHOTOS = 1000;
-const MAX_HTML_SIZE = 8 * 1024 * 1024;
+const MAX_HTML_SIZE = 8 * 1024 * 1000;
 const GOOGLE_PHOTOS_HOSTS = new Set(["photos.app.goo.gl", "photos.google.com", "www.photos.google.com"]);
+const BATCACHE_HOSTS = /^(photos|lh\d+)\.(googleusercontent|google)\.com$/i;
 const albumCache = new Map<string, CacheEntry>();
 const pendingAlbums = new Map<string, Promise<PublicPhoto[]>>();
+
+const DEFAULT_HEADERS = {
+  "User-Agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
+  Accept: "text/html,application/xhtml+xml,application/json,*/*;q=0.8",
+  "Accept-Language": "en-US,en;q=0.9,ru;q=0.8",
+};
 
 /**
  * Публичный share-link безопасно читать с сервера: браузер не сталкивается с
@@ -44,7 +51,7 @@ function parseSharedAlbumUrl(raw: string): URL | null {
 }
 
 function isGooglePhotosHost(url: URL): boolean {
-  return GOOGLE_PHOTOS_HOSTS.has(url.hostname.toLowerCase());
+  return GOOGLE_PHOTOS_HOSTS.has(url.hostname.toLowerCase()) || BATCACHE_HOSTS.test(url.hostname);
 }
 
 function isGoogleImageHost(hostname: string): boolean {
@@ -72,246 +79,28 @@ function asNumber(value: unknown): number {
 }
 
 /**
- * Подпись к фото (description), которую пользователь задал в Google Photos,
- * хранится строкой глубже в массиве деталей. Точной фиксированной позиции у
- * поля нет — Google периодически сдвигает индексы, а подпись может лежать
- * как в самом массиве detail, так и во вложенном под-массиве рядом с url/w/h.
- * Поэтому рекурсивно обходим вложенные массивы и берём первую разумную
- * человекочитаемую строку: не URL, не googleusercontent id, не закодированный
- * blob с непечатаемыми символами, длиннее 1 символа.
+ * Делает запрос с ручной обработкой редиректов (чтобы не дать fetch уйти с Google).
+ * Возвращает финальный URL и текст ответа.
  */
-function extractDescription(node: unknown, depth = 0): string {
-  if (depth > 6) return "";
-  if (Array.isArray(node)) {
-    // Сначала просмотрим строки непосредственно в этом массиве — обычно
-    // description лежит близко к URL и размерам.
-    for (const entry of node) {
-      if (typeof entry !== "string") continue;
-      const candidate = isPlausibleDescription(entry);
-      if (candidate) return candidate;
-    }
-    // Потом — вложенные массивы (глубина ограничена выше).
-    for (const entry of node) {
-      if (Array.isArray(entry)) {
-        const nested = extractDescription(entry, depth + 1);
-        if (nested) return nested;
-      }
-    }
-  }
-  return "";
-}
-
-function isPlausibleDescription(raw: string): string {
-  const trimmed = raw.trim();
-  if (trimmed.length < 2) return "";
-  // Пропускаем URL, длинные id и закодированные технические строки.
-  if (/^https?:\/\//i.test(trimmed)) return "";
-  if (/^[a-z0-9_-]{20,}$/i.test(trimmed)) return "";
-  // Строки с большим количеством экранированных последовательностей — это
-  // сериализованные вложенные структуры, не подпись.
-  if ((trimmed.match(/\\u[0-9a-fA-F]{4}/g) || []).length > 4) return "";
-  // Описание не должно содержать управляющих символов (признак бинаря).
-  // eslint-disable-next-line no-control-regex
-  if (/[\x00-\x08\x0B\x0C\x0E-\x1F]/.test(trimmed)) return "";
-  // Пропускаем типичные служебные маркеры Google / mime / длину.
-  if (/^(AF_initDataCallback|data:image|video|application|com\.google|photo|album)/i.test(trimmed)) return "";
-  // Строки, состоящие сплошь из цифр и пунктуации (timestamps/числа), не подпись.
-  if (/^[\d.,;:!?\s-]+$/.test(trimmed)) return "";
-  if (trimmed.length > 1000) return "";
-  return trimmed;
-}
-
-function toPhoto(id: unknown, src: unknown, width: unknown, height: unknown, fallbackId: string, rawDetail?: unknown): PublicPhoto | null {
-  const normalizedSrc = normalizeImageUrl(src);
-  if (!normalizedSrc) return null;
-  return {
-    id: typeof id === "string" && id ? id : fallbackId,
-    src: normalizedSrc,
-    width: asNumber(width),
-    height: asNumber(height),
-    description: extractDescription(rawDetail),
-  };
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/**
- * Читает object literal из AF_initDataCallback без хрупкого regexp по всему
- * HTML: скобки внутри строк не сбивают границы JSON5-объекта.
- */
-function readObjectLiteral(input: string, start: number): string | null {
-  if (input[start] !== "{") return null;
-  let depth = 0;
-  let quote = "";
-  let escaped = false;
-
-  for (let index = start; index < input.length; index += 1) {
-    const char = input[index];
-    if (quote) {
-      if (escaped) {
-        escaped = false;
-      } else if (char === "\\") {
-        escaped = true;
-      } else if (char === quote) {
-        quote = "";
-      }
-      continue;
-    }
-
-    if (char === '"' || char === "'" || char === "`") {
-      quote = char;
-    } else if (char === "{") {
-      depth += 1;
-    } else if (char === "}") {
-      depth -= 1;
-      if (depth === 0) return input.slice(start, index + 1);
-    }
-  }
-
-  return null;
-}
-
-/** Возвращает data из всех серверных AF_initDataCallback на странице альбома. */
-function callbackData(html: string): unknown[] {
-  const marker = "AF_initDataCallback(";
-  const result: unknown[] = [];
-  let offset = 0;
-
-  while (offset < html.length) {
-    const markerAt = html.indexOf(marker, offset);
-    if (markerAt < 0) break;
-    const objectAt = html.indexOf("{", markerAt + marker.length);
-    if (objectAt < 0 || objectAt - markerAt > 64) {
-      offset = markerAt + marker.length;
-      continue;
-    }
-    const literal = readObjectLiteral(html, objectAt);
-    offset = literal ? objectAt + literal.length : markerAt + marker.length;
-    if (!literal) continue;
-
-    try {
-      const parsed = JSON5.parse(literal);
-      if (isRecord(parsed) && "data" in parsed) result.push(parsed.data);
-    } catch {
-      // Google может прислать служебный callback в другом формате. Остальные
-      // callbacks и fallback ниже всё равно дадут странице шанс загрузиться.
-    }
-  }
-
-  return result;
-}
-
-/** Формат, который Google Photos использует для списка медиа в share-альбоме. */
-function photosFromKnownAlbumShape(data: unknown): PublicPhoto[] {
-  if (!Array.isArray(data) || !Array.isArray(data[1])) return [];
-  const photos: PublicPhoto[] = [];
-
-  for (let index = 0; index < data[1].length && photos.length < MAX_PHOTOS; index += 1) {
-    const row = data[1][index];
-    if (!Array.isArray(row) || !Array.isArray(row[1])) continue;
-    const detail = row[1];
-    const photo = toPhoto(row[0], detail[0], detail[1], detail[2], `photo-${index}`, detail);
-    if (photo) photos.push(photo);
-  }
-
-  return photos;
-}
-
-/**
- * Fallback для небольших изменений внутренней разметки Google: рекурсивно
- * находим массивы вида [url, width, height], а описание подбираем из
- * соседних строк родительского массива — именно там Google обычно кладёт
- * подпись (description) в случае сдвига индексов в известной структуре.
- */
-function photosFromNestedImageDetails(data: unknown): PublicPhoto[] {
-  const photos: PublicPhoto[] = [];
-
-  function walk(node: unknown, parent: unknown[] | null, depth: number) {
-    if (depth > 8 || photos.length >= MAX_PHOTOS) return;
-    if (!Array.isArray(node)) return;
-
-    const candidate = toPhoto(
-      undefined,
-      node[0],
-      node[1],
-      node[2],
-      `photo-${photos.length}`,
-      parent ?? node,
-    );
-    if (candidate) photos.push(candidate);
-
-    for (let index = node.length - 1; index >= 0; index -= 1) {
-      if (Array.isArray(node[index])) walk(node[index], node, depth + 1);
-    }
-  }
-
-  walk(data, null, 0);
-  return photos;
-}
-
-/** Последний fallback — адреса картинок прямо в HTML (без метаданных размера). */
-function photosFromHtmlUrls(html: string): PublicPhoto[] {
-  const decoded = html
-    .replaceAll("\\/", "/")
-    .replaceAll("\\u003d", "=")
-    .replaceAll("\\u0026", "&")
-    .replaceAll("&amp;", "&");
-  const matches = decoded.match(/https:\/\/lh\d+\.googleusercontent\.com\/[^\s"'<>\\\],]+/gi) ?? [];
-  const photos: PublicPhoto[] = [];
-
-  for (const match of matches) {
-    if (photos.length >= MAX_PHOTOS) break;
-    const photo = toPhoto(undefined, match, 0, 0, `photo-${photos.length}`, null);
-    if (photo) photos.push(photo);
-  }
-
-  return photos;
-}
-
-function uniquePhotos(photos: PublicPhoto[]): PublicPhoto[] {
-  const seen = new Set<string>();
-  const result: PublicPhoto[] = [];
-  for (const photo of photos) {
-    if (seen.has(photo.src)) continue;
-    seen.add(photo.src);
-    result.push({ ...photo, id: photo.id || photo.src });
-    if (result.length >= MAX_PHOTOS) break;
-  }
-  return result;
-}
-
-function extractPhotos(html: string): PublicPhoto[] {
-  const callbackCandidates = callbackData(html);
-  const known = callbackCandidates
-    .map(photosFromKnownAlbumShape)
-    .sort((left, right) => right.length - left.length)[0] ?? [];
-  if (known.length) return uniquePhotos(known);
-
-  const nested = callbackCandidates.flatMap(photosFromNestedImageDetails);
-  if (nested.length) return uniquePhotos(nested);
-  return uniquePhotos(photosFromHtmlUrls(html));
-}
-
-async function fetchSharedAlbumHtml(start: URL): Promise<string> {
+async function googleFetch(url: URL, opts: { method?: string; body?: string; contentType?: string } = {}): Promise<{
+  finalUrl: URL;
+  text: string;
+}> {
   const controller = new AbortController();
-  // Оставляем запас до стандартного лимита короткой Vercel Function.
-  const timer = setTimeout(() => controller.abort(), 8_000);
-  let current = start;
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  let current = new URL(url);
 
   try {
-    for (let redirects = 0; redirects < 6; redirects += 1) {
+    for (let redirects = 0; redirects < 8; redirects += 1) {
       if (!isGooglePhotosHost(current)) throw new Error("The share link redirected outside Google Photos");
-      const response = await fetch(current, {
+      const headers: Record<string, string> = { ...DEFAULT_HEADERS };
+      if (opts.contentType) headers["Content-Type"] = opts.contentType;
+      const response = await fetch(current.toString(), {
+        method: opts.method ?? "GET",
+        headers,
+        body: opts.body,
         redirect: "manual",
         signal: controller.signal,
-        headers: {
-          Accept: "text/html,application/xhtml+xml",
-          // Обычный браузерный UA нужен, чтобы Google отдал HTML share-страницы
-          // с AF_initDataCallback, а не упрощённую страницу для робота.
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36",
-        },
       });
 
       if (response.status >= 300 && response.status < 400) {
@@ -323,11 +112,9 @@ async function fetchSharedAlbumHtml(start: URL): Promise<string> {
       }
 
       if (!response.ok) throw new Error(`Google Photos returned ${response.status}`);
-      const size = Number(response.headers.get("content-length") || "0");
-      if (size > MAX_HTML_SIZE) throw new Error("The album page is too large");
-      const html = await response.text();
-      if (html.length > MAX_HTML_SIZE) throw new Error("The album page is too large");
-      return html;
+      const text = await response.text();
+      if (text.length > MAX_HTML_SIZE) throw new Error("The album page is too large");
+      return { finalUrl: current, text };
     }
   } finally {
     clearTimeout(timer);
@@ -336,11 +123,181 @@ async function fetchSharedAlbumHtml(start: URL): Promise<string> {
   throw new Error("Too many redirects from Google Photos");
 }
 
+/**
+ * Google Photos оборачивает JSON-ответы batchexecute в противоугонную
+ * последовательность ")]}'\n" — убираем её перед JSON.parse.
+ */
+function stripAntiHijack(raw: string): string {
+  return raw.replace(/^\)\]\}'\s*/, "");
+}
+
+async function batchexecute(rpcId: string, entries: Array<[unknown, ...unknown[]]>, at: URL, key: string): Promise<unknown[]> {
+  const queryData = entries.map((payload) => [rpcId, JSON.stringify(payload), null, "generic"]);
+  const body = new URLSearchParams();
+  body.append("f.req", JSON.stringify([queryData]));
+  // Ключ альбома (параметр key в canonical URL) нужно пробросить — без него
+  // Google Photos возвращает UNAUTHENTICATED даже для публичных альбомов.
+  body.append("at", key);
+
+  const { text } = await googleFetch(new URL("/_/PhotosUi/data/batchexecute", at), {
+    method: "POST",
+    body: body.toString(),
+    contentType: "application/x-www-form-urlencoded;charset=UTF-8",
+  });
+
+  try {
+    return JSON.parse(stripAntiHijack(text)) as unknown[];
+  } catch {
+    return [];
+  }
+}
+
+type AlbumMeta = {
+  id: string;
+  key: string;
+  title: string;
+  items: Array<{ id: string; url: string }>;
+};
+
+// RPC id из gphotos-scraper; snAcKc — листание альбома по страницам.
+const LIST_RPC_ID = "snAcKc";
+// fDcn4b — детальная информация об отдельном mediaItem (description, filename, size...).
+const DETAIL_RPC_ID = "fDcn4b";
+
+/**
+ * Загружает share-страницу альбома, вытаскивает canonical-URL и параметр key,
+ * затем через batchexecute подгружает список медиа и их описания.
+ */
+async function scrapeAlbum(startUrl: URL): Promise<AlbumMeta & { photoDetails: Map<string, { description: string; width: number; height: number }> }> {
+  const { finalUrl: pageUrl, text: html } = await googleFetch(startUrl);
+
+  // Из share-страницы нужно вытащить две вещи:
+  // 1) <link rel="canonical" href="https://photos.google.com/share/...?key=...">
+  // 2) на случай если canonical редиректит — album id из пути и key из query.
+  const canonicalMatch = html.match(/<link[^>]+rel=["']canonical["'][^>]+href=["']([^"']+)["']/i);
+  const canonicalHref = canonicalMatch?.[1];
+  let canonical: URL;
+  try {
+    canonical = canonicalHref ? new URL(canonicalHref, pageUrl) : pageUrl;
+  } catch {
+    canonical = pageUrl;
+  }
+  if (!isGooglePhotosHost(canonical)) canonical = pageUrl;
+
+  let albumId = "";
+  const pathParts = canonical.pathname.split("/").filter(Boolean);
+  if (pathParts.length) albumId = pathParts[pathParts.length - 1];
+  let key = canonical.searchParams.get("key") ?? "";
+  if (!key) {
+    // Резерв: если canonical не содержит key (иногда бывает у коротких ссылок),
+    // пробуем вытащить его из исходного URL и из HTML.
+    key = pageUrl.searchParams.get("key") ?? "";
+    if (!key) {
+      const keyMatch = html.match(/[?&]key=([^"&'<>\s]+)/);
+      if (keyMatch) key = keyMatch[1];
+    }
+  }
+
+  if (!albumId || !key) throw new Error("Could not locate album id or share key in the Google Photos page");
+
+  // Шаг 1: пагинированно вытаскиваем id всех фотографий из альбома.
+  const items: Array<{ id: string; url: string }> = [];
+  let token: unknown = null;
+  let pages = 0;
+  let title = "";
+
+  do {
+    if (pages++ > 30) break; // не более ~15000 фото
+    const resp = await batchexecute(LIST_RPC_ID, [[albumId, token, null, key]], canonical, key);
+    const envelope = resp.find((item) => Array.isArray(item) && item[1] === LIST_RPC_ID) as unknown[] | undefined;
+    if (!envelope) break;
+    const innerText = typeof envelope[2] === "string" ? envelope[2] : "";
+    if (!innerText) break;
+    let parsed: unknown;
+    try {
+      parsed = JSON.parse(innerText);
+    } catch {
+      break;
+    }
+    // Формат: [albumIdRef, [[photoId, [url]], ...], nextToken, [albumId, title, dates, dl, cover, owner, ...], ...]
+    const arr = parsed as unknown[];
+    const pageItems = (arr?.[1] as unknown[] | undefined) ?? [];
+    for (const row of pageItems) {
+      if (!Array.isArray(row)) continue;
+      const pid = typeof row[0] === "string" ? row[0] : "";
+      const itemData = Array.isArray(row[1]) ? row[1] : null;
+      const purl = typeof itemData?.[0] === "string" ? normalizeImageUrl(itemData[0]) : null;
+      if (pid && purl) items.push({ id: pid, url: purl });
+    }
+    // Заголовок альбома лежит в [3][1].
+    const meta = Array.isArray(arr?.[3]) ? (arr[3] as unknown[]) : [];
+    if (!title && typeof meta[1] === "string" && meta[1]) title = meta[1];
+    token = arr?.[2] ?? null;
+  } while (token && items.length < MAX_PHOTOS);
+
+  if (!items.length) throw new Error("No public photos were found in this album");
+
+  // Шаг 2: пачками по 500 запрашиваем детальную информацию (description/size).
+  const photoDetails = new Map<string, { description: string; width: number; height: number }>();
+  const CHUNK = 400;
+  const tasks: Array<Promise<void>> = [];
+
+  for (let start = 0; start < items.length; start += CHUNK) {
+    const chunk = items.slice(start, start + CHUNK);
+    const payload = chunk.map((it) => [it.id, null, key] as const);
+    tasks.push(
+      batchexecute(DETAIL_RPC_ID, payload as unknown as Array<[unknown, ...unknown[]]>, canonical, key).then((resp) => {
+        const byId = new Map(chunk.map((it, i) => [i, it]));
+        for (const envelope of resp) {
+          if (!Array.isArray(envelope) || envelope[1] !== DETAIL_RPC_ID) continue;
+          const innerText = typeof envelope[2] === "string" ? envelope[2] : "";
+          if (!innerText) continue;
+          let parsed: unknown;
+          try {
+            parsed = JSON.parse(innerText);
+          } catch {
+            continue;
+          }
+          // Формат ответа — плоский массив с результатами в том же порядке.
+          if (!Array.isArray(parsed)) continue;
+          for (let i = 0; i < parsed.length; i += 1) {
+            const entry = parsed[i];
+            const it = byId.get(i);
+            if (!it) continue;
+            if (!Array.isArray(entry)) continue;
+            // [id, description, filename, createdAt, ?, size, width, height, ...]
+            const description = typeof entry[1] === "string" ? entry[1].trim() : "";
+            const width = asNumber(entry[6]);
+            const height = asNumber(entry[7]);
+            photoDetails.set(it.id, { description, width, height });
+          }
+        }
+      }),
+    );
+  }
+
+  await Promise.all(tasks);
+
+  return { id: albumId, key, title, items, photoDetails };
+}
+
+function photosFromAlbumMeta(meta: Awaited<ReturnType<typeof scrapeAlbum>>): PublicPhoto[] {
+  return meta.items.slice(0, MAX_PHOTOS).map((it, index) => {
+    const d = meta.photoDetails.get(it.id);
+    return {
+      id: it.id || `photo-${index}`,
+      src: it.url,
+      width: d?.width ?? 0,
+      height: d?.height ?? 0,
+      description: d?.description ?? "",
+    };
+  });
+}
+
 function pruneCache(now: number) {
   for (const [key, entry] of albumCache) {
     if (entry.expiresAt <= now) albumCache.delete(key);
   }
-  // В тёплой serverless-функции не даём cache бесконечно расти от случайных URL.
   if (albumCache.size > 100) albumCache.clear();
 }
 
@@ -354,8 +311,8 @@ async function listAlbumPhotos(albumUrl: URL): Promise<PublicPhoto[]> {
   const pending = pendingAlbums.get(key);
   if (pending) return pending;
 
-  const task = fetchSharedAlbumHtml(albumUrl)
-    .then(extractPhotos)
+  const task = scrapeAlbum(albumUrl)
+    .then(photosFromAlbumMeta)
     .then((photos) => {
       if (!photos.length) throw new Error("No public photos were found in this album");
       albumCache.set(key, { photos, expiresAt: Date.now() + CACHE_TTL });
@@ -367,6 +324,31 @@ async function listAlbumPhotos(albumUrl: URL): Promise<PublicPhoto[]> {
 
   pendingAlbums.set(key, task);
   return task;
+}
+
+/**
+ * Оставляем старый HTML-based fallback как последний шанс, если batchexecute
+ * вдруг перестанет работать (например, Google поменяет RPC id). Он даст нам
+ * список URL без описаний, что всё равно лучше сломанного виджета.
+ */
+async function fallbackFromHtml(albumUrl: URL): Promise<PublicPhoto[]> {
+  const { text: html } = await googleFetch(albumUrl);
+  const decoded = html
+    .replaceAll("\\/", "/")
+    .replaceAll("\\u003d", "=")
+    .replaceAll("\\u0026", "&")
+    .replaceAll("&amp;", "&");
+  const matches = decoded.match(/https:\/\/lh\d+\.googleusercontent\.com\/[^\s"'<>\]\[,]+/gi) ?? [];
+  const seen = new Set<string>();
+  const photos: PublicPhoto[] = [];
+  for (const match of matches) {
+    const src = normalizeImageUrl(match);
+    if (!src || seen.has(src)) continue;
+    seen.add(src);
+    photos.push({ id: src, src, width: 0, height: 0, description: "" });
+    if (photos.length >= MAX_PHOTOS) break;
+  }
+  return photos;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -383,13 +365,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const photos = await listAlbumPhotos(albumUrl);
+    let photos: PublicPhoto[];
+    try {
+      photos = await listAlbumPhotos(albumUrl);
+    } catch (primaryError) {
+      console.warn("Google Photos batchexecute failed, falling back to HTML scrape:", primaryError);
+      photos = await fallbackFromHtml(albumUrl);
+      if (!photos.length) throw primaryError;
+    }
     res.setHeader("Cache-Control", "public, max-age=60, s-maxage=300, stale-while-revalidate=3600");
     res.setHeader("X-Content-Type-Options", "nosniff");
     res.status(200).json({ photos });
   } catch (error) {
-    // Не отдаём пользователю внутренние детали Google/Vercel, но оставляем
-    // причину в serverless-логах для диагностики публичной ссылки.
     console.error("Google Photos gallery failed", error);
     res.status(502).json({ error: "Google Photos album could not be loaded" });
   }
