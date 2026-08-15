@@ -510,7 +510,8 @@
   flex-wrap: wrap;
 }
 
-.ad-link-block {
+.ad-link-block,
+.ad-google-photos-block {
   display: flex;
   flex-direction: column;
   gap: 10px;
