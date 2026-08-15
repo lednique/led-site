@@ -6,3 +6,6 @@ dist
 .env.local
 .vercel
 image-search
+
+# архивы с выгрузками воркспейса
+workspace-*.zip
