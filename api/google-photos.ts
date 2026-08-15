@@ -131,13 +131,14 @@ function stripAntiHijack(raw: string): string {
   return raw.replace(/^\)\]\}'\s*/, "");
 }
 
-async function batchexecute(rpcId: string, entries: Array<[unknown, ...unknown[]]>, at: URL, key: string): Promise<unknown[]> {
+async function batchexecute(
+  rpcId: string,
+  entries: Array<[unknown, ...unknown[]]>,
+  at: URL,
+): Promise<unknown[]> {
   const queryData = entries.map((payload) => [rpcId, JSON.stringify(payload), null, "generic"]);
   const body = new URLSearchParams();
   body.append("f.req", JSON.stringify([queryData]));
-  // Ключ альбома (параметр key в canonical URL) нужно пробросить — без него
-  // Google Photos возвращает UNAUTHENTICATED даже для публичных альбомов.
-  body.append("at", key);
 
   const { text } = await googleFetch(new URL("/_/PhotosUi/data/batchexecute", at), {
     method: "POST",
@@ -208,7 +209,7 @@ async function scrapeAlbum(startUrl: URL): Promise<AlbumMeta & { photoDetails: M
 
   do {
     if (pages++ > 30) break; // не более ~15000 фото
-    const resp = await batchexecute(LIST_RPC_ID, [[albumId, token, null, key]], canonical, key);
+    const resp = await batchexecute(LIST_RPC_ID, [[albumId, token, null, key]], canonical);
     const envelope = resp.find((item) => Array.isArray(item) && item[1] === LIST_RPC_ID) as unknown[] | undefined;
     if (!envelope) break;
     const innerText = typeof envelope[2] === "string" ? envelope[2] : "";
@@ -246,8 +247,12 @@ async function scrapeAlbum(startUrl: URL): Promise<AlbumMeta & { photoDetails: M
     const chunk = items.slice(start, start + CHUNK);
     const payload = chunk.map((it) => [it.id, null, key] as const);
     tasks.push(
-      batchexecute(DETAIL_RPC_ID, payload as unknown as Array<[unknown, ...unknown[]]>, canonical, key).then((resp) => {
-        const byId = new Map(chunk.map((it, i) => [i, it]));
+      batchexecute(DETAIL_RPC_ID, payload as unknown as Array<[unknown, ...unknown[]]>, canonical).then((resp) => {
+        // Ответ на DETAIL_RPC_ID — плоский массив конвертов, по одному на каждый
+        // запрошенный photo id. Каждый конверт: [некий id, rpcId, stringifiedJson].
+        // Внутри stringifiedJson лежит [id, description, filename, createdAt, ?, size, width, height].
+        // Порядок конвертов не гарантированно совпадает с порядком запроса, поэтому
+        // сопоставляем по media id из разобранного JSON.
         for (const envelope of resp) {
           if (!Array.isArray(envelope) || envelope[1] !== DETAIL_RPC_ID) continue;
           const innerText = typeof envelope[2] === "string" ? envelope[2] : "";
@@ -258,18 +263,16 @@ async function scrapeAlbum(startUrl: URL): Promise<AlbumMeta & { photoDetails: M
           } catch {
             continue;
           }
-          // Формат ответа — плоский массив с результатами в том же порядке.
           if (!Array.isArray(parsed)) continue;
-          for (let i = 0; i < parsed.length; i += 1) {
-            const entry = parsed[i];
-            const it = byId.get(i);
-            if (!it) continue;
+          for (const entry of parsed) {
             if (!Array.isArray(entry)) continue;
-            // [id, description, filename, createdAt, ?, size, width, height, ...]
+            const pid = typeof entry[0] === "string" ? entry[0] : "";
+            const match = chunk.find((c) => c.id === pid);
+            if (!match) continue;
             const description = typeof entry[1] === "string" ? entry[1].trim() : "";
             const width = asNumber(entry[6]);
             const height = asNumber(entry[7]);
-            photoDetails.set(it.id, { description, width, height });
+            photoDetails.set(pid, { description, width, height });
           }
         }
       }),
