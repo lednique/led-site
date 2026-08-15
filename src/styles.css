@@ -131,16 +131,19 @@ body,
 }
 
 /* ——— статус-бар PWA ———
-   В мобильной ленте верхний safe-area должен оставаться непрозрачным:
-   иначе при прокрутке карточки видны через системный статус-бар. Сам блок
-   не занимает место в потоке и рисуется поверх страницы, когда браузер
-   действительно сообщает размер safe-area. */
+   Верхний safe-area на iOS должен оставаться непрозрачным: иначе при
+   прокрутке карточки видны через системный статус-бар. viewport-fit=cover
+   включает реальные safe-area значения, а этот fixed-слой закрашивает область
+   поверх страницы, не занимая место в потоке. */
 .status-bar-fill {
   display: none;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
+  height: 0;
+  /* Старый iOS 11.0–11.2 понимал только constant(), современные версии — env(). */
+  height: constant(safe-area-inset-top);
   height: env(safe-area-inset-top, 0px);
   background: #000;
   pointer-events: none;
@@ -1741,13 +1744,14 @@ img {
   }
 }
 
-/* Установленное PWA на телефоне: раньше контент уходил под статус-бар,
-   теперь viewport-fit=cover убран, чёрная полоса снизу полностью убрана,
-   safe-area учитываем только чтобы не прятать контент под вырезы. */
+/* Установленное PWA на телефоне: viewport-fit=cover нужен, чтобы iOS отдала
+   реальную высоту верхнего safe-area для чёрной подложки статус-бара.
+   Отступ снизу намеренно не добавляем — иначе снова появляется чёрная полоса
+   у home indicator. */
 @media (max-width: 799px) and (display-mode: standalone) {
   .page {
     padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-bottom: 0;
   }
 
   /* На мобильном сайт должен оставаться естественной высоты: лента карточек
@@ -1755,7 +1759,7 @@ img {
      фиксированным внутренним контейнером до нижней границы viewport. */
   .site {
     height: auto;
-    min-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    min-height: calc(100dvh - env(safe-area-inset-top, 0px));
   }
 
   .menu-panel {
