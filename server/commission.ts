@@ -1,9 +1,9 @@
 /**
  * Общая логика приёма заявки с формы сайта и отправки её в Telegram.
  *
- * Используется двумя способами:
- *  • serverless-функцией Vercel `api/commission.ts` (продакшн);
- *  • dev-плагином Vite (`vite.config.ts`), чтобы форма работала и на `npm run dev`.
+ * Этот файл находится вне `api/`: Vercel собирает его вместе с функцией,
+ * вместо того чтобы пытаться зарегистрировать вспомогательный модуль как
+ * отдельный endpoint. Vite подгружает тот же модуль в dev-режиме.
  *
  * Токен бота и chat_id берутся только из переменных окружения:
  *   TELEGRAM_BOT_TOKEN — токен от @BotFather
@@ -34,10 +34,16 @@ export type CommissionResult = {
 const MAX_NAME = 120;
 const MAX_EMAIL = 200;
 const MAX_MESSAGE = 4000;
+const TELEGRAM_MAX_MESSAGE_LENGTH = 4096;
+const TELEGRAM_TIMEOUT_MS = 10_000;
 
 function asString(value: unknown, limit: number): string {
   if (typeof value !== "string") return "";
   return value.trim().slice(0, limit);
+}
+
+function envValue(name: string): string {
+  return process.env[name]?.trim() ?? "";
 }
 
 function looksLikeEmail(value: string): boolean {
@@ -49,6 +55,27 @@ function escapeHtml(value: string): string {
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;");
+}
+
+/**
+ * Ограничивает уже экранированный текст, не обрезая HTML-сущность вроде
+ * `&amp;` посередине. Это оставляет сообщение в пределах лимита Telegram
+ * даже если пользователь вставил очень длинный текст.
+ */
+function escapedMessage(value: string, maxLength: number): string {
+  let result = "";
+  let truncated = false;
+
+  for (const character of value) {
+    const part = escapeHtml(character);
+    if (result.length + part.length + 1 > maxLength) {
+      truncated = true;
+      break;
+    }
+    result += part;
+  }
+
+  return truncated ? `${result}…` : result;
 }
 
 /** Простой in-memory лимит: не больше N заявок с одного IP за окно времени. */
@@ -78,43 +105,73 @@ function formatMessage(data: {
   locale: string;
 }): string {
   const when = new Date().toISOString().replace("T", " ").slice(0, 16);
-  const lines = [
+  const prefix = [
     "✨ <b>Новая заявка с сайта</b>",
     "",
     `👤 <b>Имя:</b> ${escapeHtml(data.name)}`,
     `📧 <b>Email:</b> ${escapeHtml(data.email)}`,
     "💬 <b>Сообщение:</b>",
-    escapeHtml(data.message),
-    "",
-    `🕐 ${when} UTC`,
-  ];
-  if (data.page) lines.push(`🔗 ${escapeHtml(data.page)}`);
-  if (data.locale) lines.push(`🌐 ${escapeHtml(data.locale)}`);
-  return lines.join("\n");
+  ].join("\n");
+  const suffixLines = ["", `🕐 ${when} UTC`];
+  if (data.page) suffixLines.push(`🔗 ${escapeHtml(data.page)}`);
+  if (data.locale) suffixLines.push(`🌐 ${escapeHtml(data.locale)}`);
+  const suffix = suffixLines.join("\n");
+  const available = Math.max(0, TELEGRAM_MAX_MESSAGE_LENGTH - prefix.length - suffix.length - 1);
+
+  return `${prefix}\n${escapedMessage(data.message, available)}${suffix}`;
+}
+
+class CommissionConfigurationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "CommissionConfigurationError";
+  }
 }
 
 async function sendToTelegram(text: string): Promise<void> {
-  const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
+  const token = envValue("TELEGRAM_BOT_TOKEN");
+  const chatId = envValue("TELEGRAM_CHAT_ID");
 
   if (!token || !chatId) {
-    throw new Error("TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set");
+    throw new CommissionConfigurationError("TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID is not set");
   }
 
-  const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      chat_id: chatId,
-      text,
-      parse_mode: "HTML",
-      disable_web_page_preview: true,
-    }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TELEGRAM_TIMEOUT_MS);
 
-  if (!resp.ok) {
-    const detail = await resp.text().catch(() => "");
-    throw new Error(`Telegram API ${resp.status}: ${detail.slice(0, 300)}`);
+  try {
+    const resp = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: chatId,
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      }),
+      signal: controller.signal,
+    });
+    const raw = await resp.text().catch(() => "");
+
+    let result: { ok?: unknown; description?: unknown } = {};
+    try {
+      result = JSON.parse(raw) as { ok?: unknown; description?: unknown };
+    } catch {
+      // The status below still gives us a useful error when Telegram returns
+      // a non-JSON response (for example, from a temporary gateway failure).
+    }
+
+    if (!resp.ok || result.ok !== true) {
+      const description = typeof result.description === "string" ? result.description : raw.slice(0, 300);
+      throw new Error(`Telegram API ${resp.status}: ${description}`);
+    }
+  } catch (err) {
+    if (err instanceof Error && err.name === "AbortError") {
+      throw new Error(`Telegram API timed out after ${TELEGRAM_TIMEOUT_MS} ms`);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -153,8 +210,13 @@ export async function handleCommission(
   } catch (err) {
     console.error("[commission] telegram error:", err);
     return {
-      status: 502,
-      body: { success: false, error: "Could not deliver the message. Try again later." },
+      status: err instanceof CommissionConfigurationError ? 503 : 502,
+      body: {
+        success: false,
+        error: err instanceof CommissionConfigurationError
+          ? "Message delivery is not configured."
+          : "Could not deliver the message. Try again later.",
+      },
     };
   }
 
