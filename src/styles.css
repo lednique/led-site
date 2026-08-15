@@ -131,20 +131,24 @@ body,
 }
 
 /* ——— статус-бар PWA ———
-   В мобильной ленте верхний safe-area должен оставаться непрозрачным:
-   иначе при прокрутке карточки видны через системный статус-бар. Сам блок
-   не занимает место в потоке и рисуется поверх страницы, когда браузер
-   действительно сообщает размер safe-area. */
+   Верхний safe-area на iOS должен оставаться непрозрачным: иначе при
+   прокрутке карточки видны через системный статус-бар. Этот fixed-слой
+   срабатывает там, где WebKit отдаёт реальные safe-area значения. */
 .status-bar-fill {
   display: none;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
+  height: 0;
+  /* Старый iOS 11.0–11.2 понимал только constant(), современные версии — env(). */
+  height: constant(safe-area-inset-top);
   height: env(safe-area-inset-top, 0px);
   background: #000;
   pointer-events: none;
-  z-index: 2147483647;
+  /* Ниже sticky-шапки (.top-chrome z-index: 40), чтобы заплатка была именно
+     за блоком с кнопками и логотипом, а не поверх него. */
+  z-index: 39;
 }
 
 
@@ -1644,10 +1648,33 @@ img {
   .top-chrome {
     position: sticky;
     top: 0;
-    top: env(safe-area-inset-top, 0px);
     z-index: 40;
     width: 100%;
     background: #000;
+    isolation: isolate;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+
+  /* Заплатка над sticky-блоком с кнопками и логотипом LEDNIQUE.
+     Она не меняет высоту шапки и включается только после прокрутки баннера,
+     поэтому не перекрывает сам верхний баннер, но закрывает «дырку» между
+     системным статус-баром iOS и чёрной шапкой. */
+  .top-chrome::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -96px;
+    height: 96px;
+    background: #000;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 0;
+  }
+
+  .sidebar.is-scrolled .top-chrome::before {
+    opacity: 1;
   }
 
   .topbar {
@@ -1741,13 +1768,13 @@ img {
   }
 }
 
-/* Установленное PWA на телефоне: раньше контент уходил под статус-бар,
-   теперь viewport-fit=cover убран, чёрная полоса снизу полностью убрана,
-   safe-area учитываем только чтобы не прятать контент под вырезы. */
+/* Установленное PWA на телефоне: раскладку страницы не двигаем safe-area
+   отступами, чтобы sticky-шапка с логотипом не прыгала и не мерцала.
+   Верхнюю «дырку» закрывает чёрная заплатка .top-chrome::before. */
 @media (max-width: 799px) and (display-mode: standalone) {
   .page {
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-top: 0;
+    padding-bottom: 0;
   }
 
   /* На мобильном сайт должен оставаться естественной высоты: лента карточек
@@ -1755,7 +1782,7 @@ img {
      фиксированным внутренним контейнером до нижней границы viewport. */
   .site {
     height: auto;
-    min-height: calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    min-height: 100dvh;
   }
 
   .menu-panel {
