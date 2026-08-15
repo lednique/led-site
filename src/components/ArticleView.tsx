@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { pickLocale, useI18n } from "../i18n";
 import { MarkdownView } from "../lib/markdown";
+import { GooglePhotosGallery } from "./GooglePhotosGallery";
 import { resolveSrc } from "../media";
 import type { ArticleBlock, Publication } from "../types";
 
@@ -43,6 +44,9 @@ export function ArticleView({ pub }: ArticleViewProps) {
                 decoding="async"
               />
             );
+          }
+          if (block.type === "googlePhotos") {
+            return <GooglePhotosGallery key={block.id} albumUrl={block.albumUrl} />;
           }
           if (block.type === "link") {
             return <ArticleLink key={block.id} block={block} />;

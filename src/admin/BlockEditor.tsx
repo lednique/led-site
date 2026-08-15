@@ -32,8 +32,10 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
           ? { id, type, markdown: "**Текст** статьи" }
           : type === "image"
             ? { id, type, src: "", alt: "" }
-            : type === "link"
-              ? { id, type, label: "Открыть", url: "https://", style: "solid" }
+            : type === "googlePhotos"
+              ? { id, type, albumUrl: "" }
+              : type === "link"
+                ? { id, type, label: "Открыть", url: "https://", style: "solid" }
               : type === "embed"
                 ? { id, type, code: "" }
                 : { id, type };
@@ -51,6 +53,9 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
         </button>
         <button type="button" onClick={() => add("image")}>
           + Изображение
+        </button>
+        <button type="button" onClick={() => add("googlePhotos")}>
+          + Галерея Google Photos
         </button>
         <button type="button" onClick={() => add("link")}>
           + Кнопка-ссылка
@@ -73,11 +78,13 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                   ? "Текст"
                   : block.type === "image"
                     ? "Изображение"
-                : block.type === "link"
-                  ? "Кнопка-ссылка"
-                  : block.type === "embed"
-                    ? "Embed code"
-                    : "Форма"}
+                    : block.type === "googlePhotos"
+                      ? "Галерея Google Photos"
+                      : block.type === "link"
+                        ? "Кнопка-ссылка"
+                        : block.type === "embed"
+                          ? "Embed code"
+                          : "Форма"}
             </strong>
             <div className="ad-block-actions">
               <button type="button" disabled={index === 0} onClick={() => move(block.id, -1)}>
@@ -145,6 +152,23 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                 <TextInput value={block.alt} onChange={(e) => update(block.id, { alt: e.target.value })} />
               </Field>
             </>
+          )}
+
+          {block.type === "googlePhotos" && (
+            <div className="ad-google-photos-block">
+              <Field label="Ссылка на общий альбом Google Photos">
+                <TextInput
+                  value={block.albumUrl}
+                  onChange={(e) => update(block.id, { albumUrl: e.target.value })}
+                  placeholder="https://photos.app.goo.gl/…"
+                  inputMode="url"
+                />
+              </Field>
+              <p className="ad-hint">
+                В Google Photos включите «Доступ по ссылке», затем вставьте ссылку на общий альбом. Фото
+                подгружаются на сайт автоматически; одна и та же галерея используется в EN и RU версиях.
+              </p>
+            </div>
           )}
 
           {block.type === "link" && (

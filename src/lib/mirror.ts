@@ -19,7 +19,7 @@ import type { ArticleBlock, Locale, Localized } from "../types";
 const SOURCE_LOCALE: Locale = "en";
 
 /** Поля, которые всегда одинаковы в обеих версиях. */
-const SHARED_KEYS = ["src", "url", "style", "code"] as const;
+const SHARED_KEYS = ["src", "url", "albumUrl", "style", "code"] as const;
 
 /** Поля, которые копируются, пока их не перевели вручную. */
 const TEXT_KEYS = ["text", "markdown", "alt", "label"] as const;

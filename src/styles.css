@@ -1138,6 +1138,116 @@ img {
   image-rendering: auto;
 }
 
+/* ——— Галерея Google Photos в статье ———
+   Галерея остаётся в потоке статьи, поэтому её общая высота не ограничена:
+   снимки идут вертикальной лентой с шагом 10 px. Каждый отдельный кадр —
+   горизонтальный scrollport. Это позволяет показать фото целиком по высоте,
+   не обрезая широкие работы по правому краю. */
+.google-photos-gallery {
+  display: flex;
+  flex-direction: column;
+  align-self: center;
+  width: 100%;
+  max-width: 800px;
+  min-width: 0;
+  gap: 10px;
+}
+
+.google-photos-frame {
+  position: relative;
+  width: 100%;
+  height: 400px;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: 36px;
+  background: #fff;
+}
+
+.google-photos-scroll {
+  width: 100%;
+  height: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  /* Не блокируем нативный pinch-to-zoom браузера на телефонах. Одним пальцем
+     область листается горизонтально, двумя — можно приблизить страницу,
+     чтобы рассмотреть снимок. pan-y оставлен, чтобы вертикальная прокрутка
+     статьи не застревала, если свайп начался на фотографии. */
+  touch-action: pan-x pan-y pinch-zoom;
+  scrollbar-width: none;
+  outline: none;
+}
+
+.google-photos-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.google-photos-scroll:focus-visible {
+  outline: 1px solid rgba(255, 255, 255, 0.8);
+  outline-offset: -3px;
+}
+
+.google-photos-image {
+  display: block;
+  width: auto;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  min-width: 0;
+  object-fit: contain;
+  object-position: left center;
+  /* Снимок нельзя выделить, сохранить перетаскиванием или вызвать long-press
+     меню. При этом pointer-events оставлены — они нужны нативному pinch zoom
+     и горизонтальному свайпу. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-user-drag: none;
+  user-drag: none;
+  -webkit-touch-callout: none;
+}
+
+/* Белая маска появляется только пока справа есть невидимая часть снимка.
+   Она занимает ровно 60 px; иконка из макета стоит посередине маски. */
+.google-photos-scroll-hint {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 60px;
+  pointer-events: none;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, #fff 100%);
+}
+
+.google-photos-scroll-hint [data-svg-wrapper] {
+  display: flex;
+  width: 17px;
+  height: 17px;
+}
+
+.google-photos-scroll-hint svg {
+  display: block;
+  width: 17px;
+  height: 17px;
+}
+
+.google-photos-gallery--status {
+  min-height: 84px;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  border-radius: 36px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.72);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+}
+
 /* На мобильной картинка занимает всю ширину viewport от края до края
    экрана. Сбрасываем transform-центрирование, расширяем width на
    величину горизонтального padding родителя и сдвигаем отрицательными
@@ -1153,6 +1263,10 @@ img {
     border-radius: 0;
     margin-left: calc(-1 * var(--reader-pad-x, 36px));
     margin-right: calc(-1 * var(--reader-pad-x, 36px));
+  }
+
+  .google-photos-frame {
+    height: 250px;
   }
 }
 

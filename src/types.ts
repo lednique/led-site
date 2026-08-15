@@ -1,4 +1,4 @@
-export type BlockType = "heading" | "text" | "image" | "link" | "form" | "embed";
+export type BlockType = "heading" | "text" | "image" | "googlePhotos" | "link" | "form" | "embed";
 
 export type Locale = "en" | "ru";
 
@@ -8,6 +8,8 @@ export type ArticleBlock =
   | { id: string; type: "heading"; text: string }
   | { id: string; type: "text"; markdown: string }
   | { id: string; type: "image"; src: string; alt: string }
+  /** Общедоступный share-link альбома. Список фото загружается на сайте через /api/google-photos. */
+  | { id: string; type: "googlePhotos"; albumUrl: string }
   | { id: string; type: "link"; label: string; url: string; style?: "solid" | "ghost" }
   | { id: string; type: "form" }
   | { id: string; type: "embed"; code: string };
