@@ -122,7 +122,7 @@ export function GooglePhotosGallery({ albumUrl }: { albumUrl: string }) {
   if (isLoading) {
     return (
       <section className="google-photos-gallery google-photos-gallery--status" aria-busy="true">
-        <span>{t("Loading Google Photos…", "Загружаю Google Photos…")}</span>
+        <span>{t("Loading Google Photos…", "Портфолио загружаются…")}</span>
       </section>
     );
   }
