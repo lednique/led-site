@@ -1,5 +1,6 @@
 import { EmbedBlock } from "../components/EmbedBlock";
 import { MarkdownView } from "../lib/markdown";
+import { ARTICLE_IMAGE_MAX_WIDTH } from "../lib/upload";
 import { uid } from "../lib/color";
 import type { ArticleBlock } from "../types";
 import { Field, ImagePick, TextArea, TextInput } from "./fields";
@@ -148,7 +149,14 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
 
           {block.type === "image" && (
             <>
-              <ImagePick label="Файл" folder="article" value={block.src} onChange={(src) => update(block.id, { src })} />
+              <ImagePick
+                label="Файл"
+                folder="article"
+                maxWidth={ARTICLE_IMAGE_MAX_WIDTH}
+                hint={`Картинки шире ${ARTICLE_IMAGE_MAX_WIDTH} px панель ужимает до ${ARTICLE_IMAGE_MAX_WIDTH} px по ширине, остальные остаются в исходном размере. GIF, APNG, SVG и ICO не перерисовывает.`}
+                value={block.src}
+                onChange={(src) => update(block.id, { src })}
+              />
               <Field label="Alt">
                 <TextInput value={block.alt} onChange={(e) => update(block.id, { alt: e.target.value })} />
               </Field>

@@ -577,6 +577,13 @@
   align-items: start;
 }
 
+/* Подпись под блоком баннера: поясняет, что файл хранится без изменения
+   разрешения, а ограничен только его вес. */
+.ad-banner-hint {
+  margin-top: 12px;
+  max-width: 760px;
+}
+
 .ad-card-fields {
   display: flex;
   flex-direction: column;

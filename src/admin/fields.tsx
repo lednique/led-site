@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type KeyboardEvent } from "react";
-import { inspectImage, readFileAsText, sanitizeSvg } from "../lib/files";
+import { inspectImage, OversizeImageError, readFileAsText, sanitizeSvg } from "../lib/files";
 import { uploadMedia } from "../lib/upload";
 import { resolveSrc } from "../media";
 
@@ -36,17 +36,30 @@ export function ImagePick({
   variant = "wide",
   folder = "images",
   maxSize,
+  maxWidth,
+  maxBytes,
+  keepDimensions,
   mime,
   clearable,
+  hint,
 }: {
   label: string;
   value: string;
   onChange: (src: string) => void;
   variant?: "wide" | "tall" | "icon";
   folder?: string;
+  /** Ограничение по длинной стороне, px. По умолчанию 1600 (см. DEFAULT_POLICY). */
   maxSize?: number;
+  /** Ограничение по ширине, px — картинки в статье. Меньше не растягиваем. */
+  maxWidth?: number;
+  /** Лимит веса файла, байты. Сверх лимита файл дожимается по качеству. */
+  maxBytes?: number;
+  /** Не менять разрешение файла (главный баннер). */
+  keepDimensions?: boolean;
   mime?: string;
   clearable?: boolean;
+  /** Подпись под полем: что панель сделает с загруженным файлом. */
+  hint?: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [kind, setKind] = useState<string>("");
@@ -58,9 +71,18 @@ export function ImagePick({
     try {
       const info = await inspectImage(file);
       setKind(info.animated ? info.ext.toUpperCase() : "");
-      onChange(await uploadMedia(file, folder, { max: maxSize, mime }));
-    } catch {
-      window.alert("Не удалось загрузить изображение");
+      onChange(
+        await uploadMedia(file, folder, {
+          maxSide: maxSize,
+          maxWidth,
+          maxBytes,
+          keepDimensions,
+          mime,
+        }),
+      );
+    } catch (err) {
+      // Про лимит веса говорим прямо: файл можно только уменьшить вручную.
+      window.alert(err instanceof OversizeImageError ? err.message : "Не удалось загрузить изображение");
     } finally {
       setBusy(false);
       e.target.value = "";
@@ -77,6 +99,7 @@ export function ImagePick({
         {animated ? <b className="ad-anim-badge">{animated}</b> : null}
         <input type="file" accept={ACCEPT_IMAGE} onChange={onFile} />
       </div>
+      {hint ? <p className="ad-hint">{hint}</p> : null}
       {clearable && value ? (
         <button type="button" className="ad-ghost ad-clear-img" onClick={() => onChange("")}>
           Сбросить

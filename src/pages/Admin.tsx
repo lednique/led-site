@@ -5,6 +5,8 @@ import { Field, HashtagField, ImagePick, SvgPick, TextArea, TextInput } from "..
 import { DEFAULT_ACCENT, MENU_PAGES, pageLabel } from "../defaults";
 import { cardSurface, uid } from "../lib/color";
 import { alignPublicationBlocks, copyBlocks, mirrorText, syncBlocks } from "../lib/mirror";
+import { formatBytes } from "../lib/files";
+import { BANNER_MAX_BYTES } from "../lib/upload";
 import { resolveSrc } from "../media";
 import {
   movePublication,
@@ -216,6 +218,8 @@ export function AdminPage() {
             label="Изображение баннера"
             variant="tall"
             folder="banner"
+            keepDimensions
+            maxBytes={BANNER_MAX_BYTES}
             value={data.banner.image}
             onChange={(image) => patchSite({ banner: { ...data.banner, image } })}
           />
@@ -249,6 +253,12 @@ export function AdminPage() {
             </Field>
           </div>
         </section>
+        <p className="ad-hint ad-banner-hint">
+          Картинка баннера хранится в исходном размере — панель её не уменьшает. Ограничение только по весу:
+          файл тяжелее {formatBytes(BANNER_MAX_BYTES)} будет пережат в JPEG с максимально возможным качеством при
+          том же разрешении. Обрезку под макет (390×250 в рейле, вся правая часть экрана на компьютере) делает
+          сам сайт, поэтому загружайте оригинал целиком.
+        </p>
         </>
       )}
       {tab === "buttons" && <ButtonsTab />}
