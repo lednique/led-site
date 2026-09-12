@@ -1,3 +1,4 @@
+import { EmbedBlock } from "../components/EmbedBlock";
 import { MarkdownView } from "../lib/markdown";
 import { uid } from "../lib/color";
 import type { ArticleBlock } from "../types";
@@ -230,7 +231,7 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
               </p>
               {block.code.trim() && (
                 <div className="ad-embed-preview">
-                  <div className="block-embed" dangerouslySetInnerHTML={{ __html: block.code }} />
+                  <EmbedBlock code={block.code} />
                 </div>
               )}
             </div>

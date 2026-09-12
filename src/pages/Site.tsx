@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useLocation, useMatch, useNavigate, useParams } from "react-router-dom";
 import { Banner } from "../components/Banner";
 import { CloseIcon } from "../components/Icons";
 import { SiteLoader } from "../components/Loader";
@@ -9,6 +9,7 @@ import { Stage } from "../components/Stage";
 import { MENU_PAGES, pageLabel } from "../defaults";
 import { useI18n } from "../i18n";
 import { resolveSrc } from "../media";
+import { privacyPublication } from "../privacy";
 import { useSite, useSiteReady, visiblePublications } from "../store";
 import type { Localized, MenuPageKey, PageContent, Publication } from "../types";
 
@@ -36,22 +37,55 @@ export function SitePage() {
   const ready = useSiteReady();
   const { id, page } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+  const privacyMatch = useMatch("/privacy");
   const { locale, setLocale, t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
   const [cardsReady, setCardsReady] = useState(false);
+  // Один и тот же брейкпоинт, что в CSS (max-width: 799px): статья существует
+  // в единственном экземпляре — либо десктопном, либо мобильном. Раньше оба
+  // монтировались одновременно и каждый выполнял embed-коды и галереи сам по
+  // себе, поэтому виджеты работали дважды и «начинали заново».
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-width: 799px)").matches,
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 799px)");
+    const apply = () => setIsMobile(mq.matches);
+    apply();
+    mq.addEventListener("change", apply);
+    return () => mq.removeEventListener("change", apply);
+  }, []);
 
   const article = id ? data.publications.find((p) => p.id === id) : undefined;
   const menuKey = page && MENU_KEYS.has(page) ? (page as MenuPageKey) : undefined;
   const menuContent = menuKey ? data.pages[menuKey] : undefined;
   const menuPub =
     menuKey && menuContent ? pageAsPublication(menuKey, menuContent, pageLabel(data.pages, menuKey)) : undefined;
-  const stageArticle = article ?? menuPub;
+  const isPrivacy = Boolean(privacyMatch);
+  const stageArticle = article ?? menuPub ?? (isPrivacy ? privacyPublication : undefined);
   const open = Boolean(stageArticle);
 
   // Любая смена маршрута (открытие страницы/статьи) сворачивает меню.
   useEffect(() => {
     setMenuOpen(false);
-  }, [id, page]);
+  }, [id, page, isPrivacy]);
+
+  // Закрытие политики конфиденциальности возвращает туда, откуда её открыли
+  // (ссылка из формы или из cookie-уведомления запоминает маршрут в state);
+  // остальные статьи закрываются на главную, как раньше.
+  const navState = location.state as { from?: unknown } | null;
+  const privacyBack =
+    typeof navState?.from === "string" &&
+    navState.from.startsWith("/") &&
+    !navState.from.startsWith("//") &&
+    navState.from !== "/privacy"
+      ? navState.from
+      : "/";
+  function closeArticle() {
+    navigate(isPrivacy ? privacyBack : "/");
+  }
 
   // Splash Screen держит сайт скрытым, пока не подтянутся данные и не
   // загрузятся изображения первых карточек ленты. Так лента не «выпрыгивает»
@@ -168,7 +202,7 @@ export function SitePage() {
             <button
               type="button"
               className="menu-item menu-item--close"
-              onClick={() => navigate("/")}
+              onClick={closeArticle}
               aria-label={t("Close", "Закрыть")}
             >
               <CloseIcon />
@@ -196,12 +230,12 @@ export function SitePage() {
           menuOpen={menuOpen}
           onToggleMenu={() => setMenuOpen((v) => !v)}
         />
-        {open && stageArticle && (
-          <Stage banner={data.banner} article={stageArticle} onClose={() => navigate("/")} />
+        {open && stageArticle && !isMobile && (
+          <Stage banner={data.banner} article={stageArticle} onClose={closeArticle} />
         )}
-        {open && stageArticle && (
+        {open && stageArticle && isMobile && (
           <div className="mobile-sheet">
-            <Stage banner={data.banner} article={stageArticle} onClose={() => navigate("/")} />
+            <Stage banner={data.banner} article={stageArticle} onClose={closeArticle} />
           </div>
         )}
       </div>

@@ -236,6 +236,61 @@ img {
   }
 }
 
+/* ——— cookie notice ———
+   Полупрозрачный тост внизу экрана поверх Splash Screen. Показывается только
+   при первом посещении (флаг в localStorage): держится пару секунд и гаснет
+   фейдом. Сам компонент демонтируется по таймеру, поэтому тост исчезает, даже
+   если анимации отключены (prefers-reduced-motion). */
+.cookie-notice {
+  position: fixed;
+  left: 50%;
+  bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 1100;
+  max-width: min(560px, calc(100vw - 32px));
+  padding: 10px 18px;
+  border-radius: 18px;
+  background: rgba(24, 24, 24, 0.55);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  text-align: center;
+  pointer-events: auto;
+  -webkit-user-select: none;
+  user-select: none;
+  animation: cookie-life 4.2s ease forwards;
+}
+
+.cookie-notice a {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  white-space: nowrap;
+}
+
+@keyframes cookie-life {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 10px);
+  }
+  8% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  78% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, 6px);
+  }
+}
+
 /* ——— sidebar ——— */
 
 .sidebar {
@@ -1404,6 +1459,10 @@ img {
   display: flex;
   flex-direction: column;
   gap: 12px;
+  /* Узкая центрированная колонка вместо растягивания на всю ширину статьи. */
+  align-self: center;
+  width: 100%;
+  max-width: 600px;
 }
 
 .glass-form label {
@@ -1435,6 +1494,14 @@ img {
 
 .submit-btn {
   margin-top: 6px;
+  /* Компактная пилюля по центру, как обычные кнопки-ссылки (.article-link),
+     а не растянутая на всю ширину формы. */
+  align-self: center;
+  width: auto;
+  padding: 0 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   height: 44px;
   border: none;
   border-radius: 10000px;
@@ -1480,6 +1547,28 @@ img {
   color: #ff9a9a;
 }
 
+/* Согласие под полем «Сообщение»: «…вы соглашаетесь с политикой
+   конфиденциальности» — политика открывается текстовой ссылкой. */
+.form-consent {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.5;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.form-consent a {
+  color: #fff;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (hover: hover) {
+  .form-consent a:hover {
+    opacity: 0.75;
+  }
+}
+
 .glass-form input:disabled,
 .glass-form textarea:disabled,
 .submit-btn:disabled {
@@ -1495,6 +1584,11 @@ img {
   align-self: stretch;
   border-radius: 18px;
   overflow: hidden;
+  /* Собственная прокрутка виджета отключена: вертикальный свайп, начавшийся
+     на виджете, листает статью, а щипок масштабирует страницу. Горизонтальные
+     панорамирования внутри виджета запрещены. touch-action пересекается через
+     границу iframe, поэтому правило действует и на виджеты чужого домена. */
+  touch-action: pan-y pinch-zoom;
 }
 
 .block-embed iframe,
@@ -1502,6 +1596,11 @@ img {
 .block-embed img {
   max-width: 100%;
   border: 0;
+}
+
+.block-embed iframe {
+  touch-action: pan-y pinch-zoom;
+  overflow: hidden;
 }
 
 .mobile-sheet {
