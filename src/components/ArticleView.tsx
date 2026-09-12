@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { pickLocale, useI18n } from "../i18n";
 import { MarkdownView } from "../lib/markdown";
+import { EmbedBlock } from "./EmbedBlock";
 import { GooglePhotosGallery } from "./GooglePhotosGallery";
 import { resolveSrc } from "../media";
 import type { ArticleBlock, Publication } from "../types";
@@ -54,13 +55,10 @@ export function ArticleView({ pub }: ArticleViewProps) {
           if (block.type === "embed") {
             // Вставной HTML сторонних сервисов (iframe, виджеты, плееры…).
             // Контент авторский — добавляется только из панели управления.
-            return (
-              <div
-                key={block.id}
-                className="block-embed"
-                dangerouslySetInnerHTML={{ __html: block.code }}
-              />
-            );
+            // EmbedBlock пишет код в DOM один раз и не трогает его при
+            // перерисовках, поэтому виджет не перезапускается от скролла
+            // статьи или фоновых обновлений данных.
+            return <EmbedBlock key={block.id} code={block.code} />;
           }
           return <ContactForm key={block.id} />;
         })}
@@ -108,6 +106,7 @@ function ArticleLink({ block }: { block: Extract<ArticleBlock, { type: "link" }>
 
 function ContactForm() {
   const { t, locale } = useI18n();
+  const location = useLocation();
   const [sent, setSent] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState("");
@@ -191,6 +190,16 @@ function ContactForm() {
         {t("Message", "Сообщение")}
         <textarea name="message" rows={4} required disabled={sending} />
       </label>
+      <p className="form-consent">
+        {t(
+          "By pressing “Send”, you agree to the ",
+          "Нажимая кнопку «Отправить», вы соглашаетесь с ",
+        )}
+        <Link to="/privacy" state={{ from: location.pathname }}>
+          {t("privacy policy", "политикой конфиденциальности")}
+        </Link>
+        .
+      </p>
       {/* honeypot — невидимое поле, заполняют только спам-боты */}
       <input
         className="form-honeypot"
