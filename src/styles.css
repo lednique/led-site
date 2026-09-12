@@ -7,8 +7,7 @@
 :root {
   --black: #000;
   --muted: #808080;
-  /* Цвет статус-бара из панели управления (вкладка «Баннер»).
-     Подставляется в рантайме хуком useThemeColor. */
+  /* Статус-бар всегда непрозрачно чёрный; подставляется хуком useThemeColor. */
   --status-bar: #000;
   --ease-out-back: cubic-bezier(0.01, 1.43, 0.46, 1.85);
   --link-ease: cubic-bezier(0.38, 0, 0, 1);
@@ -511,6 +510,24 @@ img {
 
 .card {
   cursor: pointer;
+}
+
+/* Появление карточек «домино»: плавный fade плюс сдвиг снизу вверх на 10 px.
+   Задержка каждой следующей карточки задаётся инлайн-стилем (10 мс шаг от
+   верхней к нижней карточке). */
+.card--enter {
+  animation: card-enter 350ms var(--link-ease) both;
+}
+
+@keyframes card-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .card-body {
@@ -1085,7 +1102,7 @@ img {
   z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   margin-bottom: 10px;
 }
 
@@ -1102,6 +1119,7 @@ img {
   font-weight: 600;
   letter-spacing: -0.03em;
   line-height: 1.05;
+  text-align: center;
   margin-bottom: 16px;
 }
 
@@ -1109,13 +1127,14 @@ img {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  /* Широкая колонка (до 900 px), прижата margin-left: auto к правому краю
-     .stage-reader — текст и картинка «уходят» вправо. Когда места
-     меньше — колонка сужается вместе с правым контейнером, и картинка
-     с width: 100% / max-width: 800 масштабируется вместе с ней. */
+  /* Широкая колонка (до 900 px), отцентрирована по области статьи.
+     Все элементы статьи центрируются по колонке, а не прижимаются
+     к её левому краю. */
   width: 100%;
   max-width: 900px;
   margin-left: auto;
+  margin-right: auto;
+  text-align: center;
 }
 
 .block-heading {
@@ -1124,14 +1143,13 @@ img {
 }
 
 .block-image {
-  /* Картинка в статье: от 0 до 800 px по ширине, занимает всю ширину
-     колонки .article-blocks. Если колонка шире 800 — картинка упирается
-     в max-width 800 и центрируется в колонке. Если колонка уже 800 —
-     картинка сужается вместе с ней, потому что width: 100% от родителя.
-     Без min-width: на очень узких экранах картинка тоже сжимается. */
+  /* Картинка в статье не растягивается до 800 px принудительно: если файл
+     меньше 800 px, она остаётся в своей естественной ширине и центрируется
+     в колонке; если больше — ужимается до 800 px (или до ширины колонки,
+     когда она уже 800 px). */
   display: block;
-  width: 100%;
-  max-width: 800px;
+  width: auto;
+  max-width: min(100%, 800px);
   align-self: center;
   border-radius: 24px;
   /* GIF и APNG отдаём как есть — без масштабирующего сглаживания кадров */
@@ -1365,7 +1383,10 @@ img {
 }
 
 .md ul {
-  padding-left: 18px;
+  padding-left: 0;
+  /* Маркеры списка «внутри» строки, чтобы текст оставался по центру
+     колонки статьи вместе с остальными элементами. */
+  list-style-position: inside;
 }
 
 .md a {
@@ -1504,7 +1525,14 @@ img {
   cursor: pointer;
   color: #fff;
   font: inherit;
-  padding: 10px 15px;
+  /* Фиксированная высота и flex-центрирование: кнопки текста и кнопка-иконка
+     «закрыть» получаются ровно одной высоты и стоят в одну линию. */
+  height: 34px;
+  padding: 0 15px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   border-radius: 10000px;
   font-size: 12px;
   font-weight: 600;
@@ -1518,6 +1546,16 @@ img {
   transition:
     transform 150ms var(--ease-out-back),
     background 150ms var(--ease-out-back);
+}
+
+/* Кнопка «закрыть» статьи на десктопе: та же форма, что у кнопок меню,
+   но с иконкой-крестиком внутри. */
+.menu-item--close {
+  padding: 0 14px;
+}
+
+.menu-item--close svg {
+  display: block;
 }
 
 .menu-item::after {
@@ -1627,6 +1665,9 @@ img {
     min-height: 100dvh;
     overflow-x: clip;
     overflow-y: visible;
+    /* Запрещаем нативный pull-to-refresh браузера у верхнего края страницы:
+       он выглядел как «принудительное обновление» сайта при доскролле наверх. */
+    overscroll-behavior-y: none;
   }
 
   body,
@@ -1635,6 +1676,10 @@ img {
     min-height: 100%;
     min-height: 100dvh;
     overflow: visible;
+  }
+
+  body {
+    overscroll-behavior-y: none;
   }
 
   .page,
@@ -1741,6 +1786,25 @@ img {
 
   .menu-toggle.is-open {
     transform: rotate(90deg);
+  }
+
+  /* Однократная подсказка сразу после Splash Screen: кнопка меню делает
+     короткий поворот (как при открытии меню), чтобы было видно, что она
+     нажимается. Играет один раз за появление шапки. */
+  .menu-toggle--hint {
+    animation: menu-toggle-hint 200ms var(--link-ease) 400ms 1 both;
+  }
+
+  @keyframes menu-toggle-hint {
+    0% {
+      transform: rotate(0deg);
+    }
+    50% {
+      transform: rotate(90deg);
+    }
+    100% {
+      transform: rotate(0deg);
+    }
   }
 
   /* Открытое меню сдвигает страницу вниз. margin, не transform:
@@ -2004,12 +2068,11 @@ img {
     justify-content: flex-end;
   }
 
-  /* Кнопка закрытия на той же горизонтали, что и кнопки верхнего меню,
-     но с левой стороны области статьи. */
-  .stage-close {
-    top: 25px;
-    left: 36px;
-    right: auto;
+  /* Кнопка закрытия статьи на десктопе переехала в .desktop-menu (правый
+     верхний угол, рядом с кнопками меню) — в одну линию и одной высоты.
+     Внутреннюю кнопку .stage-close оставляем только мобильной версии. */
+  .site > .stage .stage-close {
+    display: none;
   }
 
   .stage-reader {

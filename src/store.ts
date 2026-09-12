@@ -1,8 +1,8 @@
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { defaultSite, MENU_PAGES, mergePages, SITE_VERSION } from "./defaults";
 import { supabase } from "./lib/supabase";
 import { ensureRemoteSrc } from "./lib/upload";
-import type { ArticleBlock, BannerData, Locale, PageContent, Publication, SiteData, SitePages } from "./types";
+import type { ArticleBlock, BannerData, Locale, PageContent, Publication, SiteData, SitePages, SplashBackground } from "./types";
 
 type Row = {
   id: string;
@@ -22,7 +22,7 @@ type Row = {
 
 type SettingsRow = {
   id: number;
-  banner?: BannerData & { favicon?: string; pages?: SiteData["pages"]; themeColor?: string };
+  banner?: BannerData & { favicon?: string; pages?: SiteData["pages"]; themeColor?: string; splash?: SplashBackground };
   nav?: SiteData["nav"];
   socials?: SiteData["socials"];
   favicon?: string | null;
@@ -106,6 +106,7 @@ function applySettings(base: SiteData, row: SettingsRow | null): SiteData {
   // banner jsonb (как favicon), поэтому читаем из обоих мест.
   const pages = mergePages(row.pages ?? b?.pages, base.pages);
   const themeColor = row.theme_color ?? row.themeColor ?? b?.themeColor ?? base.themeColor;
+  const splash = b?.splash ?? base.splash;
   return {
     ...base,
     banner: bannerFromRow(row.banner, base.banner),
@@ -113,6 +114,7 @@ function applySettings(base: SiteData, row: SettingsRow | null): SiteData {
     socials: row.socials?.length ? row.socials : base.socials,
     favicon: row.favicon || embedded || base.favicon || "",
     themeColor: themeColor ?? base.themeColor,
+    splash,
     pages,
   };
 }
@@ -121,6 +123,7 @@ function signature(data: SiteData): string {
   return JSON.stringify({
     favicon: data.favicon,
     themeColor: data.themeColor,
+    splash: data.splash,
     pages: data.pages,
     banner: data.banner,
     nav: data.nav,
@@ -286,6 +289,7 @@ async function persistSettings() {
     ...(state.favicon ? { favicon: state.favicon } : {}),
     pages: state.pages,
     themeColor: state.themeColor,
+    splash: state.splash,
   };
   const payload = {
     id: 1,
@@ -328,7 +332,7 @@ export async function saveSiteSettings(): Promise<boolean> {
     setSync({ dirty: false, mode: "local" });
     return true;
   }
-  const [bannerImage, favicon, socials, pageEntries] = await Promise.all([
+  const [bannerImage, favicon, socials, pageEntries, splashImage] = await Promise.all([
     ensureRemoteSrc(state.banner.image, "banner"),
     ensureRemoteSrc(state.favicon, "favicon"),
     Promise.all(
@@ -337,9 +341,17 @@ export async function saveSiteSettings(): Promise<boolean> {
     Promise.all(
       MENU_PAGES.map(async (p) => [p.key, await materializePageContent(state.pages[p.key])] as const),
     ),
+    ensureRemoteSrc(state.splash.image, "banner"),
   ]);
   const pages = Object.fromEntries(pageEntries) as SitePages;
-  replaceSite({ ...state, banner: { ...state.banner, image: bannerImage }, favicon, socials, pages });
+  replaceSite({
+    ...state,
+    banner: { ...state.banner, image: bannerImage },
+    splash: { ...state.splash, image: splashImage },
+    favicon,
+    socials,
+    pages,
+  });
   await persistSettings();
   const ok = sync.mode !== "offline";
   if (ok) setSync({ dirty: false });
@@ -561,20 +573,12 @@ export function useHydrateSite() {
       stopRealtime = subscribeRealtime();
     });
 
-    const onVisible = () => {
-      if (document.visibilityState === "visible") void refreshFromSupabase();
-    };
-    const onFocus = () => {
-      void refreshFromSupabase();
-    };
-    document.addEventListener("visibilitychange", onVisible);
-    window.addEventListener("focus", onFocus);
-
+    // Данные обновляются через realtime-подписку Supabase, поэтому больше не
+    // принуждаем страницу к повторной загрузке при возврате во вкладку или при
+    // фокусе окна: это выглядело как «сайт перезапускается».
     return () => {
       cancelled = true;
       stopRealtime();
-      document.removeEventListener("visibilitychange", onVisible);
-      window.removeEventListener("focus", onFocus);
     };
   }, []);
 }
@@ -611,9 +615,6 @@ export function useBrandAssets() {
   }, [data.favicon]);
 }
 
-/** Ширина, ниже которой включается мобильная вёрстка (см. styles.css). */
-const MOBILE_QUERY = "(max-width: 799px)";
-
 function setMeta(name: string, content: string) {
   let meta = document.head.querySelector<HTMLMetaElement>(`meta[name="${name}"]`);
   if (!meta) {
@@ -627,41 +628,71 @@ function setMeta(name: string, content: string) {
 /**
  * Цвет статус-бара / панели вкладок.
  *
- * На мобильном верхняя системная область должна оставаться непрозрачно
- * чёрной во время прокрутки: карточки не должны быть видны под статус-баром.
- * Safe-area дополнительно закрывается элементом .status-bar-fill.
+ * Статус-бар всегда остаётся непрозрачно чёрным: на мобильном карточки не
+ * должны быть видны под системной областью во время прокрутки, а в
+ * компьютерных браузерах панель вкладок по замыслу чёрная. Safe-area
+ * дополнительно закрывается элементом .status-bar-fill.
  */
 export function useThemeColor() {
-  const data = useSite();
-  const themeColor = (data.themeColor || "#000000").trim() || "#000000";
-
   useEffect(() => {
-    const mq = window.matchMedia(MOBILE_QUERY);
-
     const apply = () => {
-      // На мобильном отдельно закрываем верхнюю системную область. Градиент
-      // баннера TraceBase при этом живёт в .banner--rail::after и его нельзя
-      // отключать вместе со статус-баром.
-      if (mq.matches) {
-        // Верхняя системная область должна быть непрозрачно чёрной: иначе
-        // при прокрутке карточки могут просачиваться под статус-бар.
-        setMeta("theme-color", "#000000");
-        setMeta("msapplication-navbutton-color", "#000000");
-        document.documentElement.style.setProperty("--status-bar", "#000000");
-        setMeta("apple-mobile-web-app-status-bar-style", "black");
-      } else {
-        const color = "#000000";
-        setMeta("theme-color", color);
-        setMeta("msapplication-navbutton-color", color);
-        document.documentElement.style.setProperty("--status-bar", color);
-        // Не используем black-translucent: на iOS он делает системную область
-        // прозрачной, и при прокрутке через неё проглядывает контент.
-        setMeta("apple-mobile-web-app-status-bar-style", "black");
-      }
+      // Верхняя системная область должна быть непрозрачно чёрной: иначе
+      // при прокрутке карточки могут просачиваться под статус-бар.
+      setMeta("theme-color", "#000000");
+      setMeta("msapplication-navbutton-color", "#000000");
+      document.documentElement.style.setProperty("--status-bar", "#000000");
+      // Не используем black-translucent: на iOS он делает системную область
+      // прозрачной, и при прокрутке через неё проглядывает контент.
+      setMeta("apple-mobile-web-app-status-bar-style", "black");
     };
 
     apply();
-    mq.addEventListener("change", apply);
-    return () => mq.removeEventListener("change", apply);
-  }, [themeColor]);
+    return undefined;
+  }, []);
+}
+
+/* ——— фон экрана загрузки (Splash Screen) ——— */
+
+const SPLASH_CACHE_KEY = "lednique-splash-bg";
+
+function readCachedSplash(): SplashBackground | null {
+  try {
+    const raw = localStorage.getItem(SPLASH_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<SplashBackground>;
+    if (parsed && (parsed.type === "color" || parsed.type === "image")) {
+      return { type: parsed.type, color: parsed.color || "#000000", image: parsed.image || "" };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+/**
+ * Фон Splash Screen. Экран загрузки показывается до того, как данные сайта
+ * подтянутся из Supabase, поэтому при первом кадре фон читается из маленького
+ * локального кэша (последний сохранённый вариант), а после загрузки данных —
+ * из настроек панели. data:-картинки в кэш не пишем, чтобы не раздувать
+ * localStorage несохранённым файлом.
+ */
+export function useSplashBackground(): SplashBackground {
+  const data = useSite();
+  const ready = useSiteReady();
+  const [cached] = useState<SplashBackground | null>(readCachedSplash);
+
+  useEffect(() => {
+    // Кэш обновляем только после загрузки настроек: пока данные не готовы,
+    // data.splash — это заводской дефолт, и он затирал бы сохранённый фон.
+    if (!ready) return;
+    try {
+      const img = data.splash.image || "";
+      const safe = img.startsWith("data:") ? { ...data.splash, image: "" } : data.splash;
+      localStorage.setItem(SPLASH_CACHE_KEY, JSON.stringify(safe));
+    } catch {
+      /* ignore */
+    }
+  }, [ready, data.splash]);
+
+  return ready ? data.splash : cached ?? data.splash;
 }

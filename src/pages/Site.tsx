@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Banner } from "../components/Banner";
+import { CloseIcon } from "../components/Icons";
 import { SiteLoader } from "../components/Loader";
 import { MenuPanel } from "../components/MenuPanel";
 import { Sidebar } from "../components/Sidebar";
 import { Stage } from "../components/Stage";
 import { MENU_PAGES, pageLabel } from "../defaults";
 import { useI18n } from "../i18n";
-import { useSite, useSiteReady } from "../store";
+import { resolveSrc } from "../media";
+import { useSite, useSiteReady, visiblePublications } from "../store";
 import type { Localized, MenuPageKey, PageContent, Publication } from "../types";
 
 const MENU_KEYS = new Set<string>(MENU_PAGES.map((p) => p.key));
@@ -36,6 +38,7 @@ export function SitePage() {
   const navigate = useNavigate();
   const { locale, setLocale, t } = useI18n();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [cardsReady, setCardsReady] = useState(false);
 
   const article = id ? data.publications.find((p) => p.id === id) : undefined;
   const menuKey = page && MENU_KEYS.has(page) ? (page as MenuPageKey) : undefined;
@@ -49,6 +52,44 @@ export function SitePage() {
   useEffect(() => {
     setMenuOpen(false);
   }, [id, page]);
+
+  // Splash Screen держит сайт скрытым, пока не подтянутся данные и не
+  // загрузятся изображения первых карточек ленты. Так лента не «выпрыгивает»
+  // пустыми карточками, а появляется сразу с готовым содержимым (с анимацией
+  // «домино»). Сверху стоит ограничение по времени, чтобы экран загрузки
+  // никогда не зависал из-за медленной картинки.
+  useEffect(() => {
+    if (!ready || cardsReady) return;
+    const sources = visiblePublications(data, locale)
+      .slice(0, 20)
+      .map((p) => resolveSrc(p.image))
+      .filter((src) => src && !src.startsWith("data:"));
+    if (sources.length === 0) {
+      setCardsReady(true);
+      return;
+    }
+    let cancelled = false;
+    const timeout = window.setTimeout(() => {
+      if (!cancelled) setCardsReady(true);
+    }, 2500);
+    Promise.all(
+      sources.map(
+        (src) =>
+          new Promise<void>((resolve) => {
+            const img = new Image();
+            img.onload = () => resolve();
+            img.onerror = () => resolve();
+            img.src = src;
+          }),
+      ),
+    ).then(() => {
+      if (!cancelled) setCardsReady(true);
+    });
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeout);
+    };
+  }, [ready, cardsReady, data, locale]);
 
   // На мобильном основная лента должна оставаться на месте, пока поверх неё
   // открыт просмотр статьи. Сам .stage-reader при этом остаётся единственным
@@ -114,7 +155,7 @@ export function SitePage() {
     };
   }, [open]);
 
-  if (!ready) {
+  if (!ready || !cardsReady) {
     return <SiteLoader />;
   }
 
@@ -123,6 +164,16 @@ export function SitePage() {
       <div className={`site${menuOpen ? " menu-open" : ""}`}>
         {!open && <Banner data={data.banner} variant="hero" />}
         <nav className="desktop-menu" aria-label={t("Menu", "Меню")}>
+          {open && (
+            <button
+              type="button"
+              className="menu-item menu-item--close"
+              onClick={() => navigate("/")}
+              aria-label={t("Close", "Закрыть")}
+            >
+              <CloseIcon />
+            </button>
+          )}
           {MENU_PAGES.map((p) => (
             <button
               key={p.key}

@@ -105,8 +105,8 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome, me
     onOpenArticle(id);
   }
 
-  const right = pubs.filter((_, i) => i % 2 === 0);
-  const left = pubs.filter((_, i) => i % 2 === 1);
+  const right = pubs.map((item, index) => ({ item, index })).filter((_, i) => i % 2 === 0);
+  const left = pubs.map((item, index) => ({ item, index })).filter((_, i) => i % 2 === 1);
 
   return (
     <aside ref={sidebarRef} className={`sidebar${articleOpen ? " has-article" : ""}${scrolled ? " is-scrolled" : ""}`}>
@@ -121,7 +121,7 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome, me
         <Banner data={data.banner} variant="rail" />
         <button
           type="button"
-          className={`menu-toggle${menuOpen ? " is-open" : ""}`}
+          className={`menu-toggle${menuOpen ? " is-open" : ""}${mobile ? " menu-toggle--hint" : ""}`}
           onClick={onToggleMenu}
           aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
           aria-expanded={menuOpen}
@@ -160,10 +160,11 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome, me
           <div className="board">
             <div className="col">
               <SocialCard items={data.socials} />
-              {left.map((item) => (
+              {left.map(({ item, index }) => (
                 <PublicationCard
                   key={item.id}
                   item={item}
+                  index={index}
                   isOpen={activeId === item.id}
                   onOpen={() => handleCard(item.id, item.type, item.url)}
                 />
@@ -171,10 +172,11 @@ export function Sidebar({ data, articleOpen, activeId, onOpenArticle, onHome, me
               {loadingMore && <CardSkeleton />}
             </div>
             <div className="col">
-              {right.map((item) => (
+              {right.map(({ item, index }) => (
                 <PublicationCard
                   key={item.id}
                   item={item}
+                  index={index}
                   isOpen={activeId === item.id}
                   onOpen={() => handleCard(item.id, item.type, item.url)}
                 />

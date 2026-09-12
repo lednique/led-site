@@ -12,7 +12,7 @@ export default function App() {
     <I18nProvider>
       {/* Подложка под системным статус-баром: видна только в установленном
           PWA на iOS (там бар прозрачный и контент уходит под него).
-          Цвет берётся из панели управления через переменную --status-bar. */}
+          Статус-бар всегда непрозрачно чёрный. */}
       <div className="status-bar-fill" aria-hidden="true" />
       <BrowserRouter>
         <Routes>

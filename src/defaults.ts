@@ -102,6 +102,7 @@ export const defaultSite: SiteData = {
   version: SITE_VERSION,
   favicon: "",
   themeColor: "#000000",
+  splash: { type: "color", color: "#000000", image: "" },
   pages: defaultPages(),
   banner: {
     image: "",
