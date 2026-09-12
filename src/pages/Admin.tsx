@@ -162,26 +162,53 @@ export function AdminPage() {
             Квадратная картинка (PNG, SVG или JPG). Показывается на вкладке браузера и на телефоне у закладки.
           </p>
         </section>
-        <section className="ad-theme-block">
-          <Field label="Цвет статус-бара / панели вкладок">
-            <div className="ad-color">
-              <input
-                type="color"
-                value={data.themeColor}
-                onChange={(e) => patchSite({ themeColor: e.target.value })}
-              />
-              <TextInput
-                value={data.themeColor}
-                onChange={(e) => patchSite({ themeColor: e.target.value })}
-                placeholder="#000000"
-              />
-              <span className="ad-color-swatch" style={{ background: data.themeColor }} />
-            </div>
-          </Field>
+        <section className="ad-splash-block">
+          <h3>Фон Splash-Screen</h3>
+          <div className="ad-type">
+            <button
+              type="button"
+              className={data.splash.type === "color" ? "is-on" : ""}
+              onClick={() => patchSite({ splash: { ...data.splash, type: "color" } })}
+            >
+              Заливка
+            </button>
+            <button
+              type="button"
+              className={data.splash.type === "image" ? "is-on" : ""}
+              onClick={() => patchSite({ splash: { ...data.splash, type: "image" } })}
+            >
+              Изображение
+            </button>
+          </div>
+          {data.splash.type === "color" ? (
+            <Field label="Цвет фона">
+              <div className="ad-color">
+                <input
+                  type="color"
+                  value={data.splash.color}
+                  onChange={(e) => patchSite({ splash: { ...data.splash, color: e.target.value } })}
+                />
+                <TextInput
+                  value={data.splash.color}
+                  onChange={(e) => patchSite({ splash: { ...data.splash, color: e.target.value } })}
+                  placeholder="#000000"
+                />
+                <span className="ad-color-swatch" style={{ background: data.splash.color }} />
+              </div>
+            </Field>
+          ) : (
+            <ImagePick
+              label="Изображение фона"
+              variant="wide"
+              folder="banner"
+              value={data.splash.image}
+              onChange={(image) => patchSite({ splash: { ...data.splash, image } })}
+              clearable
+            />
+          )}
           <p className="ad-hint">
-            Окрашивает статус-бар на телефоне и в установленном PWA (meta-тег theme-color,
-            msapplication-navbutton-color, подложка safe-area на iOS). В компьютерных
-            браузерах панель вкладок остаётся чёрной.
+            Показывается на экране загрузки сайта. Заливка цветом или фоновое изображение
+            (растягивается на весь экран, логотип остаётся по центру).
           </p>
         </section>
         <section className="ad-banner-layout">

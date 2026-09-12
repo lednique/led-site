@@ -50,6 +50,15 @@ export type BannerData = {
   url: string;
 };
 
+/** Фон экрана загрузки (Splash Screen): заливка цветом или изображение. */
+export type SplashBackground = {
+  type: "color" | "image";
+  /** Цвет заливки, когда type === "color". */
+  color: string;
+  /** Изображение, когда type === "image". */
+  image: string;
+};
+
 /** Ключи страниц верхнего меню (мобильная шапка). */
 export type MenuPageKey = "about" | "commission" | "contacts";
 
@@ -72,6 +81,8 @@ export type SiteData = {
   favicon: string;
   /** Цвет статус-бара / панели вкладок браузера (theme-color). */
   themeColor: string;
+  /** Фон экрана загрузки (Splash Screen). */
+  splash: SplashBackground;
   /** Страницы верхнего меню: Обо мне, Заказать работу, Контакты. */
   pages: SitePages;
 };

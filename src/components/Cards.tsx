@@ -8,17 +8,19 @@ type CardProps = {
   item: Publication;
   onOpen: () => void;
   isOpen?: boolean;
+  /** Позиция карточки в ленте — задаёт задержку «домино» при появлении. */
+  index?: number;
 };
 
-export function PublicationCard({ item, onOpen, isOpen }: CardProps) {
+export function PublicationCard({ item, onOpen, isOpen, index = 0 }: CardProps) {
   const { loc } = useI18n();
   const isLink = item.type === "link";
 
   return (
     <button
       type="button"
-      className={`card${isLink ? " card--link" : " card--article"}${isOpen ? " is-open" : ""}`}
-      style={cardSurface(item.color)}
+      className={`card card--enter${isLink ? " card--link" : " card--article"}${isOpen ? " is-open" : ""}`}
+      style={{ ...cardSurface(item.color), animationDelay: `${index * 10}ms` }}
       onClick={onOpen}
     >
       <div className="card-body">
@@ -61,7 +63,7 @@ export function SocialCard({ items }: { items: SocialItem[] }) {
   const { t } = useI18n();
   if (items.length === 0) return null;
   return (
-    <div className="social-card">
+    <div className="social-card card--enter" style={{ animationDelay: "0ms" }}>
       <div className="card-body">
         <div className="card-title">{t("Social Networks", "Соцсети")}</div>
         <div className="social-well">
