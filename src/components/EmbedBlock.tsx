@@ -12,10 +12,13 @@ type EmbedBlockProps = {
  * обычные перерисовки статьи (скролл, realtime-обновления, смена маршрута)
  * узел не трогают, поэтому плееры/виджеты не перезапускаются.
  *
- * Дополнительно каждый iframe доводится до стабильного состояния:
- * - `scrolling="no"` — у виджета нет собственной прокрутки, свайп листает статью;
- * - `loading="eager"` — ленивый фрейм браузер мог бы выгрузить вне экрана
- *   и загрузить заново при возврате, что выглядело как «перезапуск» виджета.
+ * Каждый iframe переводится в `loading="eager"`: ленивый фрейм браузер мог бы
+ * выгрузить вне экрана и загрузить заново при возврате, что выглядело как
+ * «перезапуск» виджета.
+ *
+ * Прокрутку и touch-жесты внутри виджета не трогаем: ни `scrolling="no"`,
+ * ни `touch-action` не выставляются — iframe листается и масштабируется
+ * нативно, как обычная страница.
  */
 export const EmbedBlock = memo(function EmbedBlock({ code }: EmbedBlockProps) {
   const ref = useRef<HTMLDivElement>(null);
@@ -29,7 +32,6 @@ export const EmbedBlock = memo(function EmbedBlock({ code }: EmbedBlockProps) {
     el.innerHTML = code;
     el.dataset.code = code;
     el.querySelectorAll("iframe").forEach((frame) => {
-      frame.setAttribute("scrolling", "no");
       if (frame.getAttribute("loading") !== "eager") {
         frame.setAttribute("loading", "eager");
       }
