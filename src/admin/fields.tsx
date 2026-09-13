@@ -117,7 +117,8 @@ export function ImagePick({
 
 /** Что показывает панель, пока ролик превращается в кадры. */
 function progressText(progress: FrameProgress): string {
-  return `${progress.stage === "encode" ? "Нарезаю кадры" : "Загружаю кадры"}: ${progress.done} из ${progress.total}`;
+  const label = progress.stage === "encode" ? "Нарезаю кадры" : "Загружаю кадры";
+  return `${label}: ${progress.done} из ${progress.total}`;
 }
 
 /** «48 кадров», «2 кадра», «1 кадр» — подпись на превью последовательности. */

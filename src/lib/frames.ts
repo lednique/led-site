@@ -12,26 +12,40 @@ import { uploadFrameSequence } from "./upload";
  * APNG или анимированный WebP для этого не годятся: браузер проигрывает их
  * сам и не даёт поставить конкретный кадр, то есть привязать анимацию
  * к прокрутке нельзя. Отдельные кадры — можно.
+ *
+ * Кадры берутся равномерно по всей длительности, но снимаются и уезжают в
+ * корзину частями по `FRAME_CHUNK` штук: нарезал кусок — загрузили кусок.
  */
 
 /** Максимальная ширина кадра, px. Больше сайт не показывает, а вес и память важнее. */
 const FRAME_MAX_WIDTH = 1080;
 
-/** Сколько кадров снимаем с секунды ролика: чаще — плавнее, но тяжелее. */
-const FRAME_FPS = 12;
+/**
+ * Сколько кадров в последовательности — всегда. Кадр меняется примерно каждые
+ * 30 px прокрутки: меньше — анимация станет «слайдами», больше — не нужно по
+ * плавности, а вес и память растут ровно по числу кадров.
+ */
+const FRAME_TARGET = 60;
+
+/** Потолок снизу: на меньшем количестве анимация распадается на «слайды». */
+const FRAME_MIN = 12;
+
+/** Частота ролика по умолчанию: 30 fps снимают на телефон почти всегда. */
+const FRAME_SOURCE_FPS = 30;
 
 /**
- * Меньше — анимация станет «слайдами», больше — не нужно по плавности: кадр
- * меняется примерно каждые 30 px прокрутки, а весит последовательность как
- * пара фотографий статьи.
+ * Сколько кадров в одном проходе: сначала первая половина последовательности,
+ * потом вторая. Часть отдают загрузке, пока следующая ещё перематывается, —
+ * поэтому браузер не держит в памяти все 60 картинок сразу и панель не висит
+ * молча половину времени.
  */
-const FRAME_MIN = 12;
-const FRAME_MAX = 60;
+const FRAME_CHUNK = 30;
 
 /**
  * Бюджет памяти на сайте: кадры держатся декодированными, а это 4 байта на
  * пиксель. 48 Мпикс ≈ 190 МБ — потолок, при котором телефон не начинает
- * выгружать вкладки.
+ * выгружать вкладки. Число кадров он не сокращает — их всегда `FRAME_TARGET`
+ * (кроме совсем короткого ролика); под бюджет ужимается размер каждого кадра.
  */
 const FRAME_PIXEL_BUDGET = 48_000_000;
 
@@ -77,21 +91,37 @@ function nextPaint(): Promise<void> {
 /**
  * Размер кадра в последовательности. Меньше исходного видео — сайт всё равно
  * не показывает блок крупнее, а вес и память телефона важнее. Ширину
- * ограничиваем, высота подстраивается под пропорции кадра.
+ * ограничиваем, а если вся нарезка не влезает в бюджет памяти, ужимаем оба
+ * размера: кадров это не убавляет, их всегда `FRAME_TARGET`.
  */
-function outputSize(width: number, height: number): { width: number; height: number } {
-  const scale = Math.min(1, FRAME_MAX_WIDTH / width);
+function outputSize(width: number, height: number, count: number): { width: number; height: number } {
+  const byWidth = Math.min(1, FRAME_MAX_WIDTH / width);
+  const maxArea = Math.max(1, FRAME_PIXEL_BUDGET / Math.max(1, count));
+  const area = width * height * byWidth * byWidth;
+  const scale = byWidth * (area > maxArea ? Math.sqrt(maxArea / area) : 1);
   return {
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),
   };
 }
 
-/** Сколько кадров делать: по длительности ролика, но в пределах памяти сайта. */
-function frameCount(duration: number, out: { width: number; height: number }): number {
-  const byDuration = Math.round(duration * FRAME_FPS) || FRAME_MIN;
-  const byMemory = Math.max(FRAME_MIN, Math.floor(FRAME_PIXEL_BUDGET / Math.max(1, out.width * out.height)));
-  return Math.max(FRAME_MIN, Math.min(FRAME_MAX, byDuration, byMemory));
+/** Сколько кадров делать: `FRAME_TARGET`, но не чаще, чем кадров в ролике. */
+function frameCount(duration: number): number {
+  const bySource = Math.floor(Math.max(0, duration) * FRAME_SOURCE_FPS);
+  return Math.max(FRAME_MIN, Math.min(FRAME_TARGET, bySource));
+}
+
+/**
+ * Времена, на которые ставим ролик: равномерно по всей длительности, шаг
+ * дробный — погрешность не больше кадра. Последний кадр берём чуть раньше
+ * конца файла: на самой границе часть браузеров показывает пустоту (та же
+ * причина, что и у параллакс-видео).
+ */
+function frameStamps(duration: number, count: number): number[] {
+  const last = Math.max(0, duration - 0.05);
+  return Array.from({ length: count }, (_, index) =>
+    Math.min(last, count > 1 ? (index / (count - 1)) * last : 0),
+  );
 }
 
 /**
@@ -236,6 +266,8 @@ function encodeCanvas(canvas: HTMLCanvasElement): Promise<Blob> {
 export async function extractVideoFrames(
   file: File,
   onProgress?: (progress: FrameProgress) => void,
+  /** Отдаёт готовый кусок кадров — обычно на загрузку — до начала следующего. */
+  onChunk?: (blobs: Blob[], total: number) => Promise<void>,
 ): Promise<{ blobs: Blob[]; ratio: number }> {
   const url = URL.createObjectURL(file);
   const video = attachVideo(url);
@@ -249,23 +281,32 @@ export async function extractVideoFrames(
     const height = video.videoHeight;
     if (!width || !height) throw new VideoDecodeError("не удалось прочитать размер кадра");
 
-    const out = outputSize(width, height);
-    const total = frameCount(duration, out);
+    // Сначала число и времена кадров, потом — их размер: бюджет памяти делится
+    // на все кадры сразу, поэтому ужимается картинка, а не нарезка.
+    const total = frameCount(duration);
+    const stamps = frameStamps(duration, total);
+    const out = outputSize(width, height, total);
     const canvas = document.createElement("canvas");
     canvas.width = out.width;
     canvas.height = out.height;
     const ctx = canvas.getContext("2d");
     if (!ctx) throw new VideoDecodeError("браузер не даёт рисовать кадры");
 
-    // Последний кадр берём чуть раньше конца файла: на самой границе часть
-    // браузеров показывает пустоту (та же причина, что и у параллакс-видео).
-    const last = Math.max(0, duration - 0.05);
+    // Проходы по `FRAME_CHUNK` кадров: снял кусок — отдал его загрузке, и
+    // только потом перематываем дальше. Очередь перемоток при этом идёт строго
+    // вперёд по файлу, что для браузера заметно дешевле прыжков туда-сюда.
     const blobs: Blob[] = [];
-    for (let index = 0; index < total; index += 1) {
-      await seekTo(video, total > 1 ? (index / (total - 1)) * last : 0);
-      ctx.drawImage(video, 0, 0, out.width, out.height);
-      blobs.push(await encodeCanvas(canvas));
-      onProgress?.({ stage: "encode", done: index + 1, total });
+    for (let start = 0; start < total; start += FRAME_CHUNK) {
+      const end = Math.min(total, start + FRAME_CHUNK);
+      const chunk: Blob[] = [];
+      for (let index = start; index < end; index += 1) {
+        await seekTo(video, stamps[index]);
+        ctx.drawImage(video, 0, 0, out.width, out.height);
+        chunk.push(await encodeCanvas(canvas));
+        onProgress?.({ stage: "encode", done: index + 1, total });
+      }
+      blobs.push(...chunk);
+      await onChunk?.(chunk, total);
     }
     return { blobs, ratio: width / height };
   } finally {
@@ -284,9 +325,13 @@ export async function videoToFrames(
   file: File,
   onProgress?: (progress: FrameProgress) => void,
 ): Promise<{ frames: string[]; ratio: number }> {
-  const { blobs, ratio } = await extractVideoFrames(file, onProgress);
-  const frames = await uploadFrameSequence(blobs, FRAMES_FOLDER, (done, total) =>
-    onProgress?.({ stage: "upload", done, total }),
-  );
+  // Кадры грузятся частями, сразу по мере нарезки, а не все скопом в конце.
+  const frames: string[] = [];
+  const { ratio } = await extractVideoFrames(file, onProgress, async (chunk, total) => {
+    const urls = await uploadFrameSequence(chunk, FRAMES_FOLDER, (uploaded) =>
+      onProgress?.({ stage: "upload", done: frames.length + uploaded, total }),
+    );
+    frames.push(...urls);
+  });
   return { frames, ratio };
 }
