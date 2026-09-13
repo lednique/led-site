@@ -267,7 +267,7 @@ export async function extractVideoFrames(
   file: File,
   onProgress?: (progress: FrameProgress) => void,
   /** Отдаёт готовый кусок кадров — обычно на загрузку — до начала следующего. */
-  onChunk?: (blobs: Blob[], done: number, total: number) => Promise<void>,
+  onChunk?: (blobs: Blob[], total: number) => Promise<void>,
 ): Promise<{ blobs: Blob[]; ratio: number }> {
   const url = URL.createObjectURL(file);
   const video = attachVideo(url);
@@ -306,7 +306,7 @@ export async function extractVideoFrames(
         onProgress?.({ stage: "encode", done: index + 1, total });
       }
       blobs.push(...chunk);
-      await onChunk?.(chunk, end, total);
+      await onChunk?.(chunk, total);
     }
     return { blobs, ratio: width / height };
   } finally {
@@ -327,7 +327,7 @@ export async function videoToFrames(
 ): Promise<{ frames: string[]; ratio: number }> {
   // Кадры грузятся частями, сразу по мере нарезки, а не все скопом в конце.
   const frames: string[] = [];
-  const { ratio } = await extractVideoFrames(file, onProgress, async (chunk, done, total) => {
+  const { ratio } = await extractVideoFrames(file, onProgress, async (chunk, total) => {
     const urls = await uploadFrameSequence(chunk, FRAMES_FOLDER, (uploaded) =>
       onProgress?.({ stage: "upload", done: frames.length + uploaded, total }),
     );
