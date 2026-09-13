@@ -1,6 +1,6 @@
 import { EmbedBlock } from "../components/EmbedBlock";
 import { MarkdownView } from "../lib/markdown";
-import { ARTICLE_IMAGE_MAX_WIDTH, ARTICLE_VIDEO_MAX_BYTES } from "../lib/upload";
+import { ARTICLE_IMAGE_MAX_WIDTH } from "../lib/upload";
 import { uid } from "../lib/color";
 import type { ArticleBlock } from "../types";
 import { Field, ImagePick, TextArea, TextInput, VideoPick } from "./fields";
@@ -174,13 +174,10 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
             <div className="ad-video-block">
               <VideoPick
                 label="Видео"
-                folder="video"
                 value={block.src}
                 frames={block.frames}
                 onChange={(value) => update(block.id, value)}
-                hint={`Видео проигрывается прокруткой статьи: первый кадр стоит, когда статья только открыта, последний — когда блок целиком уходит за верхний край экрана. Кадр не обрезается: на компьютере блок не выше 440 px и не растягивается по ширине, на телефоне идёт от края до края экрана во всю свою высоту. Плеера и звука нет. Формат MP4 (H.264) или WebM, вес до ${Math.round(
-                  ARTICLE_VIDEO_MAX_BYTES / (1024 * 1024),
-                )} МБ. Если база не принимает видеофайлы, панель сама нарежет ролик на кадры и сохранит анимацию картинками — на сайте блок выглядит так же. Пока в статье есть такой блок, она открывается через экран загрузки — до готовности ролика.`}
+                hint={`Видео проигрывается прокруткой статьи: первый кадр стоит, когда статья только открыта, последний — когда блок целиком уходит за верхний край экрана. Кадр не обрезается: на компьютере блок не выше 440 px и не растягивается по ширине, на телефоне идёт от края до края экрана во всю свою высоту. Плеера и звука нет. Формат MP4 (H.264) или WebM. Ролик сразу нарезается панелью на кадры и сохраняется набором картинок — на сайте блок листается прокруткой так же. Пока в статье есть такой блок, она открывается через экран загрузки — до готовности кадров.`}
               />
             </div>
           )}

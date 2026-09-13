@@ -1,14 +1,7 @@
 import { useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { inspectImage, OversizeImageError, readFileAsText, sanitizeSvg } from "../lib/files";
 import { VideoDecodeError, videoToFrames, type FrameProgress } from "../lib/frames";
-import {
-  canFallbackToFrames,
-  MEDIA_BUCKET_FIX_SQL,
-  uploadMedia,
-  uploadVideo,
-  videoUploadProblem,
-  type StorageProblem,
-} from "../lib/upload";
+import { StorageRejectedError, uploadMedia, type StorageProblem } from "../lib/upload";
 import { resolveSrc } from "../media";
 
 /** Явно перечисляем форматы: часть браузеров не подставляет GIF/APNG под image/*. */
@@ -135,10 +128,11 @@ function framesLabel(count: number): string {
   return `${count} ${word}`;
 }
 
-/** Ответ панели на ошибку запасного пути: текст ролика или отказ Storage. */
+/** Ответ панели на ошибку нарезки: текст ролика или отказ Storage. */
 function framesProblem(err: unknown): StorageProblem {
   if (err instanceof VideoDecodeError) return { text: err.message, kind: "other" };
-  return videoUploadProblem(err);
+  if (err instanceof StorageRejectedError) return err.problem;
+  return { text: "Не удалось сохранить кадры ролика. Проверьте подключение и попробуйте ещё раз.", kind: "other" };
 }
 
 /**
@@ -148,13 +142,10 @@ function framesProblem(err: unknown): StorageProblem {
 type Report = { tone: "error" | "info"; text: string; sql?: string };
 
 /**
- * Загрузка видео для параллакс-блока статьи. Ролик уходит в Storage как есть,
- * без пережатия: браузер не умеет перекодировать видео. Превью показываем тем
- * же тегом <video>, каким блок отображается на сайте.
- *
- * Если корзина медиа отказалась принимать видеофайл, здесь же срабатывает
- * запасной путь: ролик нарезается на кадры и загружается картинками — блок на
- * сайте выглядит так же, разница только в отсутствии видеофайла.
+ * Загрузка видео для параллакс-блока статьи. Ролик как файл не хранится:
+ * браузер не умеет перекодировать видео, а блок всё равно не проигрывает его —
+ * он ставит кадр по прокрутке. Поэтому ролик сразу нарезается на кадры, и в
+ * Storage уезжают картинки, которые корзина принимает всегда.
  *
  * Отказ базы остаётся под полем вместе с запросом, который её чинит: alert
  * закрывается, а искать в Supabase настройки корзины владельцу сайта не нужно.
@@ -164,7 +155,6 @@ export function VideoPick({
   value,
   frames,
   onChange,
-  folder = "video",
   hint,
 }: {
   label: string;
@@ -173,7 +163,6 @@ export function VideoPick({
   /** Кадры вместо видеофайла. */
   frames?: string[];
   onChange: (value: { src: string; frames?: string[] }) => void;
-  folder?: string;
   hint?: string;
 }) {
   const [busy, setBusy] = useState(false);
@@ -193,41 +182,18 @@ export function VideoPick({
     setBusy(true);
     setReport(null);
     setCopied(false);
-    setNotice("");
+    setNotice("Нарезаю ролик на кадры…");
     setProgress(null);
     try {
-      onChange({ src: await uploadVideo(file, folder), frames: undefined });
-      return;
+      const result = await videoToFrames(file, setProgress);
+      onChange({ src: "", frames: result.frames });
     } catch (err) {
-      const failure = videoUploadProblem(err);
-      // База не принимает именно видеофайлы — картинки она возьмёт, поэтому
-      // пробуем запасной путь. Иначе чинить нужно саму базу.
-      if (!canFallbackToFrames(failure)) {
-        setReport({ tone: "error", ...failure });
-        window.alert(failure.text);
-        return;
-      }
-      setNotice("Supabase не принимает видеофайлы — делаю анимацию из кадров ролика.");
-      try {
-        const result = await videoToFrames(file, setProgress);
-        onChange({ src: "", frames: result.frames });
-        setReport({
-          tone: "info",
-          text:
-            `База не принимает видеофайлы, поэтому ролик сохранён как анимация из ${result.frames.length} кадров: ` +
-            `на сайте блок листается прокруткой точно так же, просто вместо одного файла — набор картинок. ` +
-            `Чтобы снова грузить цельное видео, выполните запрос ниже в Supabase → SQL Editor.`,
-          sql: MEDIA_BUCKET_FIX_SQL,
-        });
-      } catch (fallbackError) {
-        const failure2 = framesProblem(fallbackError);
-        setReport({ tone: "error", ...failure2 });
-        window.alert(failure2.text);
-      } finally {
-        setNotice("");
-        setProgress(null);
-      }
+      const failure = framesProblem(err);
+      setReport({ tone: "error", ...failure });
+      window.alert(failure.text);
     } finally {
+      setNotice("");
+      setProgress(null);
       setBusy(false);
       e.target.value = "";
     }
