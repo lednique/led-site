@@ -14,6 +14,13 @@
   --card-inset: 0px 3px 2px rgba(255, 255, 255, 0.5) inset,
     0px -3px 2px rgba(255, 255, 255, 0.3) inset;
   --font: "Montserrat", system-ui, sans-serif;
+  /* Верхняя линия «хрома» сайта на компьютере: от неё отсчитываются кнопки
+     меню (.menu-item) справа и кнопка «закрыть» (.nav-btn) слева. Высоты у
+     них разные, поэтому обе величины держим рядом — по ним считается
+     вертикальное выравнивание по общей средней линии. */
+  --chrome-top: 25px;
+  --menu-item-h: 34px;
+  --nav-btn-h: 40px;
 }
 
 * {
@@ -417,7 +424,7 @@ img {
 }
 
 .nav-btn {
-  height: 40px;
+  height: var(--nav-btn-h);
   width: 50px;
   display: inline-flex;
   justify-content: center;
@@ -1708,9 +1715,10 @@ img {
   cursor: pointer;
   color: #fff;
   font: inherit;
-  /* Фиксированная высота и flex-центрирование: кнопки текста и кнопка-иконка
-     «закрыть» получаются ровно одной высоты и стоят в одну линию. */
-  height: 34px;
+  /* Фиксированная высота и flex-центрирование: все кнопки меню получаются
+     ровно одной высоты и стоят в одну линию. По этой же высоте считается
+     положение кнопки «закрыть» слева (см. .site > .stage .stage-close). */
+  height: var(--menu-item-h);
   padding: 0 15px;
   display: inline-flex;
   align-items: center;
@@ -2234,7 +2242,7 @@ img {
   .desktop-menu {
     display: flex;
     position: absolute;
-    top: 25px;
+    top: var(--chrome-top);
     right: 20px;
     z-index: 40;
     gap: 8px;
@@ -2244,10 +2252,15 @@ img {
 
   /* Кнопка закрытия статьи живёт в левом верхнем углу самой статьи —
      и на мобильной, и на компьютере. В .desktop-menu (правый верхний угол)
-     остаются только пункты меню. */
+     остаются только пункты меню.
+
+     Кнопка «закрыть» (.nav-btn, 40px) и пункты меню (.menu-item, 34px) разной
+     высоты, поэтому одинаковый top развёл бы их по вертикали. Выравниваем по
+     центрам: середина строки меню стоит на --chrome-top + 34/2, значит
+     кнопке нужен top = --chrome-top + 17 - 40/2 = --chrome-top - 3px. */
   .site > .stage .stage-close {
     display: block;
-    top: 25px;
+    top: calc(var(--chrome-top) + (var(--menu-item-h) - var(--nav-btn-h)) / 2);
   }
 
   .stage-reader {
