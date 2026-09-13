@@ -20,7 +20,7 @@ export function PublicationCard({ item, onOpen, isOpen, index = 0 }: CardProps) 
     <button
       type="button"
       className={`card card--enter${isLink ? " card--link" : " card--article"}${isOpen ? " is-open" : ""}`}
-      style={{ ...cardSurface(item.color), animationDelay: `${index * 10}ms` }}
+      style={{ ...cardSurface(item.color), animationDelay: `${index * 100}ms` }}
       onClick={onOpen}
     >
       <div className="card-body">

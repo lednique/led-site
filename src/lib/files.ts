@@ -160,9 +160,9 @@ export async function inspectImage(file: File | Blob, filename = ""): Promise<Im
 export const MB = 1024 * 1024;
 
 export type UploadPolicy = {
-  /** Ограничение по длинной стороне, px. */
+  /** Ограничение по длинной стороне, px. Работает только если не задан maxWidth. */
   maxSide?: number;
-  /** Ограничение по ширине, px. Приоритетнее maxSide — колонка статьи 900 px. */
+  /** Ограничение по ширине, px: ужимаем только по ширине, высота — пропорционально. */
   maxWidth?: number;
   /** Разрешение не трогаем вовсе (главный баннер): следим только за весом файла. */
   keepDimensions?: boolean;
@@ -236,13 +236,17 @@ function formatLadder(preferred: string): string[] {
   return order.filter((mime, i) => Boolean(mime) && order.indexOf(mime) === i);
 }
 
-/** Насколько ужать картинку, чтобы вписаться в maxWidth / maxSide. Больше 1 — не растягиваем. */
+/**
+ * Насколько ужать картинку, чтобы вписаться в лимиты. Больше 1 — не растягиваем.
+ * maxWidth — главный режим (колонка статьи): ужимаем ТОЛЬКО по ширине, высота
+ * масштабируется пропорционально и ни на что не влияет, даже если она больше
+ * ширины. maxSide (длинная сторона) применяется лишь когда maxWidth не задан.
+ */
 function scaleToFit(w: number, h: number, policy: UploadPolicy): number {
   if (policy.keepDimensions) return 1;
-  let scale = 1;
-  if (policy.maxWidth) scale = Math.min(scale, policy.maxWidth / w);
-  if (policy.maxSide) scale = Math.min(scale, policy.maxSide / Math.max(w, h));
-  return scale;
+  if (policy.maxWidth) return Math.min(1, policy.maxWidth / w);
+  if (policy.maxSide) return Math.min(1, policy.maxSide / Math.max(w, h));
+  return 1;
 }
 
 /** Ниже этого качества картинку уже портить некуда — дальше только разрешение. */

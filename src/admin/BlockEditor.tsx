@@ -1,9 +1,9 @@
 import { EmbedBlock } from "../components/EmbedBlock";
 import { MarkdownView } from "../lib/markdown";
-import { ARTICLE_IMAGE_MAX_WIDTH } from "../lib/upload";
+import { ARTICLE_IMAGE_MAX_WIDTH, ARTICLE_VIDEO_MAX_BYTES } from "../lib/upload";
 import { uid } from "../lib/color";
 import type { ArticleBlock } from "../types";
-import { Field, ImagePick, TextArea, TextInput } from "./fields";
+import { Field, ImagePick, TextArea, TextInput, VideoPick } from "./fields";
 
 type BlockEditorProps = {
   blocks: ArticleBlock[];
@@ -40,7 +40,9 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                 ? { id, type, label: "Открыть", url: "https://", style: "solid" }
               : type === "embed"
                 ? { id, type, code: "" }
-                : { id, type };
+                : type === "video"
+                  ? { id, type, src: "" }
+                  : { id, type };
     onChange([...blocks, block]);
   }
 
@@ -55,6 +57,9 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
         </button>
         <button type="button" onClick={() => add("image")}>
           + Изображение
+        </button>
+        <button type="button" onClick={() => add("video")}>
+          + Параллакс-видео
         </button>
         <button type="button" onClick={() => add("googlePhotos")}>
           + Галерея Google Photos
@@ -80,13 +85,15 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                   ? "Текст"
                   : block.type === "image"
                     ? "Изображение"
-                    : block.type === "googlePhotos"
-                      ? "Галерея Google Photos"
-                      : block.type === "link"
-                        ? "Кнопка-ссылка"
-                        : block.type === "embed"
-                          ? "Embed code"
-                          : "Форма"}
+                    : block.type === "video"
+                      ? "Параллакс-видео"
+                      : block.type === "googlePhotos"
+                        ? "Галерея Google Photos"
+                        : block.type === "link"
+                          ? "Кнопка-ссылка"
+                          : block.type === "embed"
+                            ? "Embed code"
+                            : "Форма"}
             </strong>
             <div className="ad-block-actions">
               <button type="button" disabled={index === 0} onClick={() => move(block.id, -1)}>
@@ -161,6 +168,20 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                 <TextInput value={block.alt} onChange={(e) => update(block.id, { alt: e.target.value })} />
               </Field>
             </>
+          )}
+
+          {block.type === "video" && (
+            <div className="ad-video-block">
+              <VideoPick
+                label="Видео"
+                folder="video"
+                value={block.src}
+                onChange={(src) => update(block.id, { src })}
+                hint={`Видео проигрывается прокруткой статьи: первый кадр — когда блок входит в экран, последний — когда он уходит за верхний край. Плеера и звука нет. Формат MP4 (H.264) или WebM, вес до ${Math.round(
+                  ARTICLE_VIDEO_MAX_BYTES / (1024 * 1024),
+                )} МБ. Пока в статье есть такой блок, она открывается через экран загрузки — до готовности ролика.`}
+              />
+            </div>
           )}
 
           {block.type === "googlePhotos" && (

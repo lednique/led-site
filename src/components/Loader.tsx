@@ -8,8 +8,11 @@ import { LogoMark } from "./Logo";
  * не подтянутся из Supabase и не загрузятся первые карточки.
  * Логотип переливается чёрно-белым градиентом, фон настраивается
  * в панели управления (заливка или изображение).
+ *
+ * `className="site-loader--stage"` превращает его в экран загрузки статьи:
+ * тот же вид, но перекрывает только область статьи, а не весь сайт.
  */
-export function SiteLoader() {
+export function SiteLoader({ className = "" }: { className?: string } = {}) {
   const splash = useSplashBackground();
 
   const style = useMemo<CSSProperties>(() => {
@@ -26,7 +29,7 @@ export function SiteLoader() {
   }, [splash]);
 
   return (
-    <div className="site-loader" style={style} role="status" aria-label="Загрузка сайта">
+    <div className={`site-loader${className ? ` ${className}` : ""}`} style={style} role="status" aria-label="Загрузка сайта">
       <div className="site-loader-mark">
         <LogoMark className="site-loader-svg" />
         <span className="site-loader-sheen" aria-hidden />

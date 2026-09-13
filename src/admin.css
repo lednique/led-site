@@ -614,6 +614,19 @@
   object-fit: contain;
 }
 
+/* Превью загруженного видео параллакс-блока: тот же бокс, что у картинок. */
+.ad-upload--video {
+  min-height: 140px;
+}
+
+.ad-upload--video video {
+  display: block;
+  width: 100%;
+  height: 180px;
+  object-fit: contain;
+  background: #000;
+}
+
 .ad-upload-empty,
 .ad-thumb-empty {
   display: block;

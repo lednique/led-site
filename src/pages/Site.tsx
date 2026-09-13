@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useMatch, useNavigate, useParams } from "react-router-dom";
 import { Banner } from "../components/Banner";
-import { CloseIcon } from "../components/Icons";
 import { SiteLoader } from "../components/Loader";
 import { MenuPanel } from "../components/MenuPanel";
 import { Sidebar } from "../components/Sidebar";
@@ -197,17 +196,9 @@ export function SitePage() {
     <div className="page">
       <div className={`site${menuOpen ? " menu-open" : ""}`}>
         {!open && <Banner data={data.banner} variant="hero" />}
+        {/* Кнопка «закрыть» живёт в левом верхнем углу самой статьи
+            (.stage-close внутри Stage) — и на компьютере, и на телефоне. */}
         <nav className="desktop-menu" aria-label={t("Menu", "Меню")}>
-          {open && (
-            <button
-              type="button"
-              className="menu-item menu-item--close"
-              onClick={closeArticle}
-              aria-label={t("Close", "Закрыть")}
-            >
-              <CloseIcon />
-            </button>
-          )}
           {MENU_PAGES.map((p) => (
             <button
               key={p.key}
