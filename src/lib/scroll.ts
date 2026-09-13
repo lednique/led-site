@@ -21,3 +21,13 @@ export function viewportBox(scroller: HTMLElement | null): { top: number; height
   const box = scroller.getBoundingClientRect();
   return { top: box.top, height: scroller.clientHeight };
 }
+
+/**
+ * Насколько прокручено окно просмотра: 0 — статья открыта и стоит на самом
+ * верху. Для scrollport'а статьи это его `scrollTop`, для окна — прокрутка
+ * документа.
+ */
+export function scrollOffset(scroller: HTMLElement | null): number {
+  if (scroller) return scroller.scrollTop;
+  return window.scrollY || document.documentElement.scrollTop || 0;
+}

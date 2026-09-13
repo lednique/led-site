@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type RefObject } from "react";
 import { resolveSrc } from "../media";
-import { scrollParent, viewportBox } from "../lib/scroll";
+import { scrollOffset, scrollParent, viewportBox } from "../lib/scroll";
 import { useArticleMedia } from "./ArticleMedia";
 
 type ParallaxVideoProps = {
@@ -15,16 +15,19 @@ type ParallaxVideoProps = {
   frames?: string[];
 };
 
-/** Сколько максимум ждём первый кадр, прежде чем показать блок как есть. */
-const FIRST_FRAME_TIMEOUT = 8000;
+/** Сколько максимум ждём медиа (ролик или всю нарезку кадров), прежде чем показать блок как есть. */
+const MEDIA_TIMEOUT = 10000;
+
+/** Сколько кадров последовательности грузим одновременно: по порядку, но не по одному. */
+const FRAME_CONCURRENCY = 4;
 
 /**
  * Параллакс-блок: кадр привязан к прокрутке статьи.
  *
  * Ничего не проигрывается само — позиция блока в окне просмотра пересчитывается
- * в номер кадра. Первый кадр стоит, пока блок только входит снизу; последний —
- * в тот момент, когда нижняя граница блока уходит за верхнюю границу статьи.
- * Плеера, кнопок и звука нет.
+ * в номер кадра. Первый кадр стоит, пока статья только открыта и читалка не
+ * прокручена; последний — в тот момент, когда верх блока дошёл до верхней
+ * границы окна просмотра. Плеера, кнопок и звука нет.
  *
  * Источник кадра может быть двояким: видеофайл (перемотка `currentTime`) или
  * нарезанная панелью последовательность картинок (рисуем в canvas). Прокрутка
@@ -56,15 +59,20 @@ function useFrameTimeout(waiting: boolean): boolean {
   useEffect(() => {
     setTimedOut(false);
     if (!waiting) return;
-    const timer = window.setTimeout(() => setTimedOut(true), FIRST_FRAME_TIMEOUT);
+    const timer = window.setTimeout(() => setTimedOut(true), MEDIA_TIMEOUT);
     return () => window.clearTimeout(timer);
   }, [waiting]);
   return timedOut;
 }
 
 /**
- * Прогресс блока в окне просмотра: 0 — верх блока на нижней границе окна,
- * 1 — низ блока за верхней границей статьи.
+ * Прогресс блока: 0 — статья только открыта (читалка не прокручена, блок стоит
+ * на своём месте), 1 — верх блока дошёл до верхней границы окна просмотра.
+ *
+ * Кадр двигается только вместе с прокруткой и только на этом отрезке: открыли
+ * статью — стоит первый кадр, прокрутили блок до верхнего края — последний.
+ * Нулём больше не служит нижняя граница экрана — раньше из-за неё статья
+ * открывалась уже на середине анимации, а не с первого кадра.
  *
  * Ради плавности пересчёт идёт в rAF-кадре и только когда значение действительно
  * изменилось: лишний вызов дешевле пропущенного кадра, но дороже сотни одинаковых.
@@ -81,16 +89,25 @@ function useScrollProgress(holderRef: RefObject<HTMLDivElement | null>, onProgre
     const scroller = scrollParent(holder);
     let frame = 0;
     let last = -1;
+    /** Путь блока от своего места при открытии статьи до верхней границы окна. */
+    let distance = -1;
 
     const apply = () => {
       frame = 0;
       const box = holder.getBoundingClientRect();
       const view = viewportBox(scroller);
-      // Путь блока: от «верх блока на нижней границе окна» до «низ блока за
-      // верхней границей окна».
-      const distance = view.height + box.height;
-      const travelled = view.top + view.height - box.top;
-      const progress = distance > 0 ? Math.min(1, Math.max(0, travelled / distance)) : 0;
+      const scrolled = scrollOffset(scroller);
+      // Сколько осталось блоку до верхней границы окна прямо сейчас.
+      const gap = box.top - view.top;
+      // Тот же путь без прокрутки: сколько нужно пролистать, чтобы блок дошёл
+      // до верха окна. Отсчёт от места блока, а не от нижнего края экрана.
+      const rest = gap + scrolled;
+      // Пока читалка наверху, точку отсчёта уточняем: блоки выше могут поменять
+      // высоту (картинки, шрифты) и сдвинуть наш блок.
+      if (distance < 0 || scrolled <= 0) distance = rest;
+      const travelled = distance - gap;
+      // distance <= 0 значит, что блок уже на верхней границе — анимация пройдена.
+      const progress = distance > 0 ? Math.min(1, Math.max(0, travelled / distance)) : 1;
       if (last >= 0 && Math.abs(progress - last) < 0.0005) return;
       last = progress;
       handler.current(progress);
@@ -115,9 +132,14 @@ function useScrollProgress(holderRef: RefObject<HTMLDivElement | null>, onProgre
 }
 
 function holderStyle(ratio: number): CSSProperties | undefined {
-  // Пропорции кадра берём из самого файла: на мобильной блок показывается
-  // целиком от края до края, поэтому его высота должна совпадать с кадром.
-  return ratio ? ({ "--video-ratio": String(ratio) } as CSSProperties) : undefined;
+  if (!ratio) return undefined;
+  // Пропорции кадра берём из самого файла: по ним блок считает свой размер,
+  // а медиа заполняет блок целиком (fill) — без полей и без обрезки, потому
+  // что пропорции блока и кадра совпадают.
+  return {
+    "--video-ratio": String(ratio),
+    "--video-fit": "fill",
+  } as CSSProperties;
 }
 
 /* ——— видеофайл ——— */
@@ -279,22 +301,70 @@ function ParallaxFrames({ id, frames }: { id: string; frames: string[] }) {
   useEffect(() => {
     let alive = true;
     drawnRef.current = -1;
-    // Кадры грузятся все сразу и в любом порядке: блок небольшой, а показывать
-    // его нужно с первого же кадра, досылка остальных идёт в фоне.
-    imagesRef.current = frames.map((frame) => {
-      const image = new Image();
-      image.decoding = "async";
-      image.onload = () => {
+    setReady(false);
+
+    const total = frames.length;
+    const images: HTMLImageElement[] = new Array(total);
+    imagesRef.current = images;
+    let next = 0;
+    let done = 0;
+
+    /**
+     * Один кадр последовательности. Грузим по порядку — от первого к последнему:
+     * начало анимации должно быть на месте раньше конца. Ошибка кадра тоже
+     * завершает его загрузку, иначе один битый файл держал бы статью закрытой.
+     */
+    const load = (index: number): Promise<void> =>
+      new Promise((resolve) => {
+        const image = new Image();
+        image.decoding = "async";
+        images[index] = image;
+        image.addEventListener("load", () => {
+          if (!alive) {
+            resolve();
+            return;
+          }
+          // Пропорции берём из первого кадра: по ним блок считает свой размер.
+          if (index === 0 && image.naturalWidth && image.naturalHeight) {
+            setRatio(image.naturalWidth / image.naturalHeight);
+          }
+          // Кадр приехал — сразу ставим его на место, если прокрутка уже здесь.
+          // Статья открывается первым кадром, поэтому он рисуется первым же.
+          sync();
+          resolve();
+        });
+        image.addEventListener("error", () => resolve());
+        image.src = resolveSrc(frames[index]);
+      });
+
+    async function worker(): Promise<void> {
+      for (;;) {
+        const index = next;
+        next += 1;
+        if (index >= total || !alive) return;
+        await load(index);
         if (!alive) return;
-        if (image.naturalWidth && image.naturalHeight) setRatio(image.naturalWidth / image.naturalHeight);
-        setReady(true);
-        sync();
-      };
-      image.src = resolveSrc(frame);
-      return image;
-    });
+        done += 1;
+        // Готовность — это вся последовательность целиком, от первого кадра до
+        // последнего: читалка открывается только тогда, поэтому прокрутка не
+        // упирается в ещё не загруженные кадры.
+        if (done >= total) {
+          setReady(true);
+          sync();
+        }
+      }
+    }
+
+    void Promise.all(
+      Array.from({ length: Math.min(FRAME_CONCURRENCY, Math.max(1, total)) }, () => worker()),
+    );
+
     return () => {
       alive = false;
+      // Недогруженные кадры после закрытия статьи не нужны — снимаем их с загрузки.
+      images.forEach((image) => {
+        if (image && !image.complete) image.removeAttribute("src");
+      });
       imagesRef.current = [];
     };
   }, [key, sync]);
