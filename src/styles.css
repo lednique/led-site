@@ -1267,18 +1267,29 @@ img {
 
 /* ——— Параллакс-видео ———
    Ролик не проигрывается сам: кадр привязан к прокрутке статьи (ParallaxVideo).
-   Блок идёт на всю ширину колонки статьи, а пропорции кадра берутся из самого
-   файла (--video-ratio проставляет ParallaxVideo по loadedmetadata).
-   На компьютере высота ограничена 440 px: кадр выше этой отметки обрезается по
-   центру, более «широкий» ролик показывается в своей естественной высоте.
+   Кадр показывается целиком — ничего не обрезается ни на компьютере, ни на
+   телефоне. Размер блока считает сам ParallaxVideo по пропорциям файла
+   (--video-ratio), а медиа заполняет блок без полей и без обрезки
+   (--video-fit: fill): пропорции блока и кадра совпадают, поэтому растяжения
+   не видно. Пока файл не открылся и пропорции неизвестны, кадр вписывается
+   целиком (contain) — растягивать ещё нечего.
+
+   Компьютер: высота блока не больше 440 px. Кадр выше этой отметки не
+   растягивается по ширине на всю колонку — блок сужается до своей естественной
+   ширины (440 px × пропорция) и центрируется. Более «широкий» ролик занимает
+   всю колонку и показывается в своей естественной высоте.
    Плеера, кнопок и звука нет. */
 .block-video {
+  /* Пропорции кадра (ширина / высота): число из файла либо запасные 16:9. */
+  --video-ratio: 1.7777777778;
+  --video-fit: contain;
+  --video-max-height: 440px;
   position: relative;
-  align-self: stretch;
-  width: 100%;
+  align-self: center;
+  width: min(100%, calc(var(--video-max-height) * var(--video-ratio)));
   min-width: 0;
-  aspect-ratio: var(--video-ratio, 16 / 9);
-  max-height: 440px;
+  aspect-ratio: var(--video-ratio);
+  max-height: var(--video-max-height);
   overflow: hidden;
   border-radius: 24px;
   background: #000;
@@ -1296,7 +1307,7 @@ img {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: var(--video-fit);
   /* Клики и жесты уходят странице: прокрутка поверх блока не должна
      «залипать» на самом видео. */
   pointer-events: none;
@@ -1463,24 +1474,17 @@ img {
   }
 
   /* Параллакс-видео на мобильной — во всю ширину экрана, от края до края,
-     без скруглений. Высоту задаёт сам кадр: пропорции берутся из файла,
-     ничего не обрезается и не ограничивается. */
+     без скруглений и без потолка по высоте. Ширину задаёт экран, высоту —
+     пропорции кадра (--video-ratio из файла), поэтому ролик виден целиком:
+     от левого до правого края смартфона и полностью по высоте. */
   .block-video {
+    align-self: stretch;
     width: calc(100% + 2 * var(--reader-pad-x, 36px));
     max-width: none;
     max-height: none;
-    aspect-ratio: auto;
-    height: auto;
     margin-left: calc(-1 * var(--reader-pad-x, 36px));
     margin-right: calc(-1 * var(--reader-pad-x, 36px));
     border-radius: 0;
-  }
-
-  .block-video video,
-  .block-video canvas {
-    width: 100%;
-    height: auto;
-    object-fit: contain;
   }
 
   .google-photos-frame {
