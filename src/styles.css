@@ -1443,19 +1443,23 @@ img {
     margin-right: calc(-1 * var(--reader-pad-x, 36px));
   }
 
-  /* Параллакс-видео на мобильной — от края до края экрана, без скруглений
-     и без ограничения высоты: кадр показывается целиком в своих пропорциях,
-     ширина ролика равна ширине экрана. */
+  /* Параллакс-видео на мобильной — во всю ширину экрана, от края до края,
+     без скруглений. Высоту задаёт сам кадр: пропорции берутся из файла,
+     ничего не обрезается и не ограничивается. */
   .block-video {
     width: calc(100% + 2 * var(--reader-pad-x, 36px));
     max-width: none;
     max-height: none;
+    aspect-ratio: auto;
+    height: auto;
     margin-left: calc(-1 * var(--reader-pad-x, 36px));
     margin-right: calc(-1 * var(--reader-pad-x, 36px));
     border-radius: 0;
   }
 
   .block-video video {
+    width: 100%;
+    height: auto;
     object-fit: contain;
   }
 
