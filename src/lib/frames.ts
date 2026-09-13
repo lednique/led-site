@@ -1,22 +1,21 @@
 import { uploadFrameSequence } from "./upload";
 
 /**
- * Последовательность кадров вместо видеофайла.
+ * Последовательность кадров из видеофайла.
  *
  * Параллакс-блок не проигрывает ролик — он ставит кадр по позиции прокрутки,
- * поэтому видеофайл здесь нужен только как источник кадров. Если Storage не
- * принимает видео (корзина настроена на картинки, лимит веса, старый список
- * MIME), ролик режется на кадры прямо в браузере: `<video>` перематывается
- * по длительности, каждый кадр рисуется в canvas и кодируется в картинку.
- * Картинки корзина берёт всегда, а звук в таком блоке и не использовался.
+ * поэтому видеофайл здесь нужен только как источник кадров. Ролик режется
+ * на кадры прямо в браузере: `<video>` перематывается по длительности, каждый
+ * кадр рисуется в canvas и кодируется в картинку. Картинки корзина берёт
+ * всегда, а звук в таком блоке и не использовался.
  *
  * APNG или анимированный WebP для этого не годятся: браузер проигрывает их
  * сам и не даёт поставить конкретный кадр, то есть привязать анимацию
  * к прокрутке нельзя. Отдельные кадры — можно.
  */
 
-/** Длинная сторона кадра: столько же занимает колонка статьи. */
-const FRAME_MAX_SIDE = 900;
+/** Максимальная ширина кадра, px. Больше сайт не показывает, а вес и память важнее. */
+const FRAME_MAX_WIDTH = 1080;
 
 /** Сколько кадров снимаем с секунды ролика: чаще — плавнее, но тяжелее. */
 const FRAME_FPS = 12;
@@ -27,7 +26,7 @@ const FRAME_FPS = 12;
  * пара фотографий статьи.
  */
 const FRAME_MIN = 12;
-const FRAME_MAX = 40;
+const FRAME_MAX = 60;
 
 /**
  * Бюджет памяти на сайте: кадры держатся декодированными, а это 4 байта на
@@ -36,8 +35,8 @@ const FRAME_MAX = 40;
  */
 const FRAME_PIXEL_BUDGET = 48_000_000;
 
-/** Качество кадра: соседние кадры похожи, а движение скрывает огрехи сжатия. */
-const FRAME_QUALITY = 0.72;
+/** Качество кадра (JPEG): соседние кадры похожи, а движение скрывает огрехи сжатия. */
+const FRAME_QUALITY = 0.7;
 
 const METADATA_TIMEOUT = 20_000;
 const SEEK_TIMEOUT = 8_000;
@@ -77,10 +76,11 @@ function nextPaint(): Promise<void> {
 
 /**
  * Размер кадра в последовательности. Меньше исходного видео — сайт всё равно
- * не показывает блок крупнее, а вес и память телефона важнее.
+ * не показывает блок крупнее, а вес и память телефона важнее. Ширину
+ * ограничиваем, высота подстраивается под пропорции кадра.
  */
 function outputSize(width: number, height: number): { width: number; height: number } {
-  const scale = Math.min(1, FRAME_MAX_SIDE / Math.max(width, height));
+  const scale = Math.min(1, FRAME_MAX_WIDTH / width);
   return {
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),
@@ -218,21 +218,14 @@ async function readDuration(video: HTMLVideoElement): Promise<number> {
   throw new VideoDecodeError("не удалось узнать длительность");
 }
 
-/** Кодирует canvas в картинку: WebP, а где его нет — JPEG. */
+/** Кодирует canvas в JPEG: кадры фотореалистичны, JPEG жмёт их заметно легче. */
 function encodeCanvas(canvas: HTMLCanvasElement): Promise<Blob> {
   return new Promise((resolve, reject) => {
-    canvas.toBlob((webp) => {
-      // Safari на WebP молча отдаёт PNG — он в разы тяжелее, поэтому JPEG.
-      if (webp && webp.type === "image/webp") {
-        resolve(webp);
-        return;
-      }
-      canvas.toBlob(
-        (jpeg) => (jpeg ? resolve(jpeg) : reject(new VideoDecodeError("кадр не сохранился"))),
-        "image/jpeg",
-        FRAME_QUALITY,
-      );
-    }, "image/webp", FRAME_QUALITY);
+    canvas.toBlob(
+      (jpeg) => (jpeg ? resolve(jpeg) : reject(new VideoDecodeError("кадр не сохранился"))),
+      "image/jpeg",
+      FRAME_QUALITY,
+    );
   });
 }
 
@@ -284,8 +277,8 @@ export async function extractVideoFrames(
 }
 
 /**
- * Полный запасной путь: ролик → кадры → Storage. Панель вызывает его, когда
- * корзина отказалась принимать видеофайл.
+ * Полный путь сохранения ролика: видео → кадры → Storage. Панель вызывает его
+ * при каждой загрузке видео в параллакс-блок — ролик как файл не хранится.
  */
 export async function videoToFrames(
   file: File,
