@@ -148,52 +148,211 @@ export async function inspectImage(file: File | Blob, filename = ""): Promise<Im
   return { animated: false, vector: false, ext: "jpg", mime: "image/jpeg" };
 }
 
-/** Нужно ли отдать файл на сервер без пережатия. */
-export async function keepsOriginal(file: File | Blob, filename = ""): Promise<boolean> {
-  const kind = await inspectImage(file, filename);
-  return kind.animated || kind.vector;
+/* ------------------------------------------------------------------ */
+/* Подготовка файла к загрузке                                          */
+/*                                                                      */
+/* Файл трогаем только тогда, когда он не влезает в лимиты поля:         */
+/* подходящую по размеру картинку отдаём оригинальными байтами,          */
+/* разрешение правим по maxWidth / maxSide, а вес — сначала качеством   */
+/* и лишь потом разрешением.                                              */
+/* ------------------------------------------------------------------ */
+
+export const MB = 1024 * 1024;
+
+export type UploadPolicy = {
+  /** Ограничение по длинной стороне, px. */
+  maxSide?: number;
+  /** Ограничение по ширине, px. Приоритетнее maxSide — колонка статьи 900 px. */
+  maxWidth?: number;
+  /** Разрешение не трогаем вовсе (главный баннер): следим только за весом файла. */
+  keepDimensions?: boolean;
+  /** Лимит веса файла, байты. */
+  maxBytes?: number;
+  /** Качество lossy-кодирования, когда перерисовка всё-таки нужна. */
+  quality?: number;
+  /** Формат перерисованного файла. */
+  mime?: string;
+};
+
+/** Форматы, которые браузер показывает сам — их можно отдать на сервер как есть. */
+const WEB_SAFE_EXT = ["jpg", "jpeg", "png", "webp", "avif", "bmp", "gif", "apng", "svg", "ico"];
+
+/** С какого качества начинать подбор веса: оно бережнее исходного 0.84. */
+const MAX_QUALITY = 0.92;
+
+export function formatBytes(bytes: number): string {
+  if (bytes >= MB) return `${(bytes / MB).toFixed(bytes % MB === 0 ? 0 : 1)} МБ`;
+  return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
 }
 
-export async function compressImageBlob(
-  file: File,
-  max = 1600,
-  quality = 0.84,
-  mime = "image/jpeg",
-): Promise<Blob> {
-  if (!file.type.startsWith("image/") && !fileExt(file.name)) return file;
-  // GIF, APNG, анимированный WebP, SVG, ICO — только оригинал, иначе теряется анимация.
-  if (await keepsOriginal(file)) return file;
-  if (!file.type.startsWith("image/")) return file;
+/** Файл не влезает в лимит поля, а пережать его нельзя (GIF, APNG, SVG, ICO). */
+export class OversizeImageError extends Error {
+  constructor(weight: number, maxBytes: number, ext: string) {
+    super(
+      `Файл весит ${formatBytes(weight)} — это больше лимита ${formatBytes(maxBytes)}. ` +
+        `${ext.toUpperCase()} сайт не пережимает: уменьшите картинку в редакторе и загрузите заново.`,
+    );
+    this.name = "OversizeImageError";
+  }
+}
 
-  const raw = await readFileAsDataUrl(file);
-  const img = new Image();
-  img.src = raw;
-  await new Promise((res, rej) => {
-    img.onload = () => res(null);
-    img.onerror = () => rej(new Error("image"));
-  });
+function decodeImage(file: File): Promise<HTMLImageElement> {
+  return readFileAsDataUrl(file).then(
+    (raw) =>
+      new Promise<HTMLImageElement>((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error("image"));
+        img.src = raw;
+      }),
+  );
+}
 
-  const scale = Math.min(1, max / Math.max(img.width, img.height));
-  const w = Math.max(1, Math.round(img.width * scale));
-  const h = Math.max(1, Math.round(img.height * scale));
+function naturalSize(img: HTMLImageElement): { w: number; h: number } {
+  return { w: img.naturalWidth || img.width || 1, h: img.naturalHeight || img.height || 1 };
+}
+
+/** Рисует картинку в нужном размере и кодирует в Blob. null — если canvas недоступен. */
+function renderImage(img: HTMLImageElement, w: number, h: number, mime: string, quality: number): Promise<Blob | null> {
   const canvas = document.createElement("canvas");
   canvas.width = w;
   canvas.height = h;
   const ctx = canvas.getContext("2d");
-  if (!ctx) return file;
+  if (!ctx) return Promise.resolve(null);
   if (mime === "image/jpeg") {
+    // JPEG не умеет прозрачность — подложка сайта чёрная, как и фон статей.
     ctx.fillStyle = "#000";
     ctx.fillRect(0, 0, w, h);
   }
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(img, 0, 0, w, h);
-  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, mime, quality));
-  return blob ?? file;
+  return new Promise((resolve) => canvas.toBlob((blob) => resolve(blob), mime, quality));
 }
 
-export async function compressImage(file: File, max = 1600, quality = 0.84): Promise<string> {
-  const raw = await readFileAsDataUrl(file);
-  if (!file.type.startsWith("image/") || (await keepsOriginal(file))) return raw;
-  const blob = await compressImageBlob(file, max, quality);
-  if (blob === file) return raw;
-  return blobToDataUrl(blob);
+/** Форматы-кандидаты: сначала запрошенный, затем WebP (держит прозрачность), затем JPEG. */
+function formatLadder(preferred: string): string[] {
+  const order = [preferred, "image/webp", "image/jpeg"];
+  return order.filter((mime, i) => Boolean(mime) && order.indexOf(mime) === i);
+}
+
+/** Насколько ужать картинку, чтобы вписаться в maxWidth / maxSide. Больше 1 — не растягиваем. */
+function scaleToFit(w: number, h: number, policy: UploadPolicy): number {
+  if (policy.keepDimensions) return 1;
+  let scale = 1;
+  if (policy.maxWidth) scale = Math.min(scale, policy.maxWidth / w);
+  if (policy.maxSide) scale = Math.min(scale, policy.maxSide / Math.max(w, h));
+  return scale;
+}
+
+/** Ниже этого качества картинку уже портить некуда — дальше только разрешение. */
+const MIN_QUALITY = 0.35;
+
+/**
+ * Подбирает качество под лимит веса: размер JPEG/WebP примерно пропорционален
+ * качеству, поэтому сразу прыгаем к нужной ступени, а не идём по лесенке.
+ * Форматы пробуем по очереди — первой строкой всегда запрошенный.
+ */
+async function encodeFormats(
+  img: HTMLImageElement,
+  w: number,
+  h: number,
+  maxBytes: number,
+  formats: string[],
+): Promise<{ blob: Blob | null; lightest: number }> {
+  let lightest = Infinity;
+  for (const mime of formats) {
+    // PNG не принимает параметр качества: либо влезает, либо пробуем следующий формат.
+    if (mime === "image/png") {
+      const blob = await renderImage(img, w, h, mime, 1);
+      if (blob && blob.size <= maxBytes) return { blob, lightest: blob.size };
+      if (blob) lightest = Math.min(lightest, blob.size);
+      continue;
+    }
+    let quality = MAX_QUALITY;
+    for (let step = 0; step < 4 && quality >= MIN_QUALITY; step += 1) {
+      const blob = await renderImage(img, w, h, mime, quality);
+      if (!blob) return { blob: null, lightest };
+      if (blob.size <= maxBytes) return { blob, lightest: blob.size };
+      lightest = Math.min(lightest, blob.size);
+      const next = Math.max(MIN_QUALITY, quality * (maxBytes / blob.size) * 0.95);
+      // Дальше крутить бессмысленно: упёрлись в минимальное качество — идём на круг меньше.
+      if (next >= quality) break;
+      quality = next;
+    }
+  }
+  return { blob: null, lightest };
+}
+
+/**
+ * Ищет кодирование не тяжелее maxBytes: сначала качество и формат, разрешение
+ * режем только в самом конце — и ровно настолько, чтобы в лимит влезть.
+ * baseScale уже учитывает уменьшение под лимит ширины поля.
+ */
+async function encodeUnderLimit(
+  img: HTMLImageElement,
+  opts: { maxBytes: number; formats: string[]; baseScale: number },
+): Promise<Blob | null> {
+  const { w, h } = naturalSize(img);
+  let scale = opts.baseScale;
+  for (let round = 0; round < 4; round += 1) {
+    const tw = Math.max(1, Math.round(w * scale));
+    const th = Math.max(1, Math.round(h * scale));
+    const { blob, lightest } = await encodeFormats(img, tw, th, opts.maxBytes, opts.formats);
+    if (blob) return blob;
+    if (Math.max(tw, th) < 800) return null;
+    // Не хватило: уменьшаем по площади (scale ~ sqrt от отношения весов).
+    scale *= Math.min(0.85, Math.sqrt(opts.maxBytes / lightest) * 0.95);
+  }
+  return null;
+}
+
+/**
+ * Готовит файл к загрузке в Storage. Возвращает исходный файл без изменений
+ * (тогда `result === file`) — это сигнал, что пережатие не потребовалось.
+ */
+export async function prepareImageBlob(file: File, policy: UploadPolicy = {}): Promise<Blob> {
+  const kind = await inspectImage(file, file.name);
+  const maxBytes = policy.maxBytes ?? 0;
+  const quality = policy.quality ?? 0.84;
+  const mime = policy.mime ?? "image/jpeg";
+  const webSafe = WEB_SAFE_EXT.includes(kind.ext);
+  const overWeight = maxBytes > 0 && file.size > maxBytes;
+
+  // Анимация и вектор через canvas потеряли бы кадры, поэтому уходят как есть.
+  if (kind.animated || kind.vector) {
+    if (overWeight) throw new OversizeImageError(file.size, maxBytes, kind.ext);
+    return file;
+  }
+
+  // Поля без ограничения ширины (главный баннер): разрешение не трогаем никогда.
+  if (policy.keepDimensions) {
+    // Оригинальные байты в лимите — грузим их без единого повторного кодирования.
+    if (!overWeight && webSafe) return file;
+    const img = await decodeImage(file);
+    if (overWeight) {
+      const fitted = await encodeUnderLimit(img, { maxBytes, formats: formatLadder(mime), baseScale: 1 });
+      // Не влезло даже на минимальном качестве — лучше отдать оригинал, чем испортить кадр.
+      if (fitted) return fitted;
+    }
+    if (webSafe) return file;
+    const { w, h } = naturalSize(img);
+    return (await renderImage(img, w, h, mime, quality)) ?? file;
+  }
+
+  const img = await decodeImage(file);
+  const { w, h } = naturalSize(img);
+  const scale = scaleToFit(w, h, policy);
+  // Уже подходит под лимит поля и вес — оригинал уходит без пережатия.
+  if (scale >= 1 && !overWeight && webSafe) return file;
+
+  const tw = Math.max(1, Math.round(w * scale));
+  const th = Math.max(1, Math.round(h * scale));
+  let blob = scale < 1 ? await renderImage(img, tw, th, mime, quality) : null;
+  if (overWeight) {
+    blob = (await encodeUnderLimit(img, { maxBytes, formats: formatLadder(mime), baseScale: scale })) ?? blob;
+  }
+  // Формат, который браузер не покажет (HEIC и прочее), в любом случае кодируем заново.
+  if (!blob && !webSafe) blob = await renderImage(img, tw, th, mime, quality);
+  return blob ?? file;
 }
