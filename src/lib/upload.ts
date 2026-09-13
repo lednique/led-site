@@ -1,10 +1,17 @@
-import { blobToDataUrl, dataUrlToBlob, inspectImage, MB, prepareImageBlob, type UploadPolicy } from "./files";
+import { blobToDataUrl, dataUrlToBlob, fileExt, formatBytes, inspectImage, MB, prepareImageBlob, type UploadPolicy } from "./files";
 import { supabase } from "./supabase";
 
 const BUCKET = "media";
 
 /** Картинка в статье: колонка читалки — 900 px, больше хранить смысла нет. */
 export const ARTICLE_IMAGE_MAX_WIDTH = 900;
+
+/**
+ * Видео параллакс-блока. Файл уходит в Storage как есть (перекодировать видео
+ * в браузере нельзя), поэтому единственное ограничение — вес. 50 МБ — лимит
+ * бакета media в supabase/schema.sql.
+ */
+export const ARTICLE_VIDEO_MAX_BYTES = 50 * MB;
 
 /** Главный баннер сайта: разрешение оригинала бережём, вес — до 2 МБ. */
 export const BANNER_MAX_BYTES = 2 * MB;
@@ -66,6 +73,60 @@ export async function uploadMedia(file: File, folder = "images", opts?: UploadPo
     // GIF/SVG дожать нельзя — оставляем как есть, лучше тяжёлая ссылка, чем потерянный кадр.
     return blobToDataUrl(prepared);
   }
+}
+
+/* ——— видео ——— */
+
+/** MIME по расширению: некоторые браузеры не проставляют file.type для видео. */
+const VIDEO_MIME: Record<string, string> = {
+  mp4: "video/mp4",
+  m4v: "video/mp4",
+  mov: "video/quicktime",
+  webm: "video/webm",
+  ogv: "video/ogg",
+};
+
+function videoKind(file: File): { ext: string; mime: string } {
+  const ext = fileExt(file.name) || "mp4";
+  const known = VIDEO_MIME[ext];
+  const mime = file.type || known || "video/mp4";
+  // Расширение всегда приводим к тому, что реально понимает <video>.
+  return { ext: known ? ext : "mp4", mime };
+}
+
+/** Видео нельзя пережать в браузере — слишком тяжёлый файл отклоняем с понятным текстом. */
+export class OversizeVideoError extends Error {
+  constructor(weight: number, maxBytes: number) {
+    super(
+      `Видео весит ${formatBytes(weight)} — это больше лимита ${formatBytes(maxBytes)}. ` +
+        `Сожмите ролик перед загрузкой (например, до 1080p и меньшего битрейта).`,
+    );
+    this.name = "OversizeVideoError";
+  }
+}
+
+/**
+ * Загружает видео параллакс-блока в Storage без какой-либо обработки: кадры
+ * и звуковую дорожку сайт не трогает. Без настроенного Storage вернётся
+ * локальный blob:-адрес — его хватит, чтобы посмотреть блок в панели, но
+ * после сохранения он работать не будет (о чём предупреждает подпись поля).
+ */
+export async function uploadVideo(file: File, folder = "video"): Promise<string> {
+  if (file.size > ARTICLE_VIDEO_MAX_BYTES) {
+    throw new OversizeVideoError(file.size, ARTICLE_VIDEO_MAX_BYTES);
+  }
+  const { ext, mime } = videoKind(file);
+  if (!supabase) return URL.createObjectURL(file);
+  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
+    contentType: mime,
+    upsert: true,
+    cacheControl: "31536000",
+  });
+  if (error) throw new Error(error.message);
+  const url = supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  if (!url) throw new Error("Storage не вернул ссылку на файл");
+  return url;
 }
 
 export function isRemoteSrc(src: string): boolean {

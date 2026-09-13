@@ -204,6 +204,14 @@ img {
   background: #000;
 }
 
+/* Экран загрузки статьи: то же оформление, но перекрывает только область
+   статьи (на компьютере лента карточек слева остаётся видимой), а кнопка
+   «закрыть» остаётся сверху — статью можно закрыть, не дожидаясь видео. */
+.site-loader--stage {
+  position: absolute;
+  z-index: 9;
+}
+
 .site-loader-mark {
   position: relative;
   width: min(320px, 72vw);
@@ -568,7 +576,7 @@ img {
 }
 
 /* Появление карточек «домино»: плавный fade плюс сдвиг снизу вверх на 10 px.
-   Задержка каждой следующей карточки задаётся инлайн-стилем (10 мс шаг от
+   Задержка каждой следующей карточки задаётся инлайн-стилем (100 мс шаг от
    верхней к нижней карточке). */
 .card--enter {
   animation: card-enter 350ms var(--link-ease) both;
@@ -1101,10 +1109,11 @@ img {
   overflow: hidden;
 }
 
+/* Кнопка «закрыть» стоит в левом верхнем углу статьи. */
 .stage-close {
   position: absolute;
   top: 28px;
-  right: 36px;
+  left: 36px;
   z-index: 10;
 }
 
@@ -1208,6 +1217,70 @@ img {
   border-radius: 24px;
   /* GIF и APNG отдаём как есть — без масштабирующего сглаживания кадров */
   image-rendering: auto;
+}
+
+/* ——— Появление блоков статьи при прокрутке ———
+   Та же анимация, что у карточек ленты (card-enter): плавный fade плюс сдвиг
+   снизу вверх. Блок проявляется один раз — когда впервые попал в кадр.
+   Обёртка остаётся «прозрачной» для раскладки: внутри неё колонка, поэтому
+   align-self у самих блоков (по центру / на всю ширину) работает как раньше. */
+.block-reveal {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  opacity: 0;
+}
+
+.block-reveal.is-in {
+  opacity: 1;
+  /* backwards, а не both: после проигрывания элемент возвращается к своим
+     обычным стилям и не оставляет за собой transform — иначе он стал бы
+     containing block для вложенных виджетов. */
+  animation: card-enter 350ms var(--link-ease) backwards;
+}
+
+/* Если анимации выключены системно, блоки просто видны сразу: без этого
+   правила глобальный animation: none оставил бы их прозрачными. */
+@media (prefers-reduced-motion: reduce) {
+  .block-reveal {
+    opacity: 1;
+  }
+}
+
+/* ——— Параллакс-видео ———
+   Ролик не проигрывается сам: кадр привязан к прокрутке статьи (ParallaxVideo).
+   Блок идёт на всю ширину колонки статьи, а пропорции кадра берутся из самого
+   файла (--video-ratio проставляет ParallaxVideo по loadedmetadata).
+   На компьютере высота ограничена 440 px: кадр выше этой отметки обрезается по
+   центру, более «широкий» ролик показывается в своей естественной высоте.
+   Плеера, кнопок и звука нет. */
+.block-video {
+  position: relative;
+  align-self: stretch;
+  width: 100%;
+  min-width: 0;
+  aspect-ratio: var(--video-ratio, 16 / 9);
+  max-height: 440px;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #000;
+  /* До первого кадра показываем чёрный прямоугольник, а не «прыжок» кадра. */
+  opacity: 0;
+  transition: opacity 220ms var(--link-ease);
+}
+
+.block-video.is-ready {
+  opacity: 1;
+}
+
+.block-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* Клики и жесты уходят странице: прокрутка поверх видео не должна
+     «залипать» на самом ролике. */
+  pointer-events: none;
 }
 
 /* ——— Галерея Google Photos в статье ———
@@ -1368,6 +1441,22 @@ img {
     max-width: none;
     margin-left: calc(-1 * var(--reader-pad-x, 36px));
     margin-right: calc(-1 * var(--reader-pad-x, 36px));
+  }
+
+  /* Параллакс-видео на мобильной — от края до края экрана, без скруглений
+     и без ограничения высоты: кадр показывается целиком в своих пропорциях,
+     ширина ролика равна ширине экрана. */
+  .block-video {
+    width: calc(100% + 2 * var(--reader-pad-x, 36px));
+    max-width: none;
+    max-height: none;
+    margin-left: calc(-1 * var(--reader-pad-x, 36px));
+    margin-right: calc(-1 * var(--reader-pad-x, 36px));
+    border-radius: 0;
+  }
+
+  .block-video video {
+    object-fit: contain;
   }
 
   .google-photos-frame {
@@ -1638,16 +1727,6 @@ img {
     background 150ms var(--ease-out-back);
 }
 
-/* Кнопка «закрыть» статьи на десктопе: та же форма, что у кнопок меню,
-   но с иконкой-крестиком внутри. */
-.menu-item--close {
-  padding: 0 14px;
-}
-
-.menu-item--close svg {
-  display: block;
-}
-
 .menu-item::after {
   content: "";
   position: absolute;
@@ -1882,7 +1961,7 @@ img {
      короткий поворот (как при открытии меню), чтобы было видно, что она
      нажимается. Играет один раз за появление шапки. */
   .menu-toggle--hint {
-    animation: menu-toggle-hint 200ms var(--link-ease) 400ms 1 both;
+    animation: menu-toggle-hint 300ms var(--link-ease) 400ms 1 both;
   }
 
   @keyframes menu-toggle-hint {
@@ -2068,10 +2147,11 @@ img {
 
   .mobile-sheet .stage-close {
     /* Кнопка находится вне scrollport статьи и всегда остаётся на одном
-       месте относительно окна просмотра. */
+       месте относительно окна просмотра — в левом верхнем углу. */
     position: fixed;
     top: calc(28px + env(safe-area-inset-top, 0px));
-    right: 36px;
+    left: 36px;
+    right: auto;
     z-index: 10;
   }
 
@@ -2158,11 +2238,12 @@ img {
     justify-content: flex-end;
   }
 
-  /* Кнопка закрытия статьи на десктопе переехала в .desktop-menu (правый
-     верхний угол, рядом с кнопками меню) — в одну линию и одной высоты.
-     Внутреннюю кнопку .stage-close оставляем только мобильной версии. */
+  /* Кнопка закрытия статьи живёт в левом верхнем углу самой статьи —
+     и на мобильной, и на компьютере. В .desktop-menu (правый верхний угол)
+     остаются только пункты меню. */
   .site > .stage .stage-close {
-    display: none;
+    display: block;
+    top: 25px;
   }
 
   .stage-reader {

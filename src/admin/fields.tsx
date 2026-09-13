@@ -1,11 +1,14 @@
 import { useState, type ChangeEvent, type KeyboardEvent } from "react";
 import { inspectImage, OversizeImageError, readFileAsText, sanitizeSvg } from "../lib/files";
-import { uploadMedia } from "../lib/upload";
+import { OversizeVideoError, uploadMedia, uploadVideo } from "../lib/upload";
 import { resolveSrc } from "../media";
 
 /** Явно перечисляем форматы: часть браузеров не подставляет GIF/APNG под image/*. */
 const ACCEPT_IMAGE =
   "image/*,image/gif,image/apng,image/png,image/webp,image/jpeg,image/svg+xml,.gif,.apng,.png,.webp,.jpg,.jpeg,.svg,.ico";
+
+/** Форматы видео, которые точно играют в браузерах: MP4 (H.264) и WebM. */
+const ACCEPT_VIDEO = "video/mp4,video/webm,video/ogg,video/quicktime,.mp4,.m4v,.webm,.ogv,.mov";
 
 type FieldProps = {
   label: string;
@@ -101,6 +104,65 @@ export function ImagePick({
       </div>
       {hint ? <p className="ad-hint">{hint}</p> : null}
       {clearable && value ? (
+        <button type="button" className="ad-ghost ad-clear-img" onClick={() => onChange("")}>
+          Сбросить
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * Загрузка видео для параллакс-блока статьи. Ролик уходит в Storage как есть,
+ * без пережатия: браузер не умеет перекодировать видео. Превью показываем тем
+ * же тегом <video>, каким блок отображается на сайте.
+ */
+export function VideoPick({
+  label,
+  value,
+  onChange,
+  folder = "video",
+  hint,
+}: {
+  label: string;
+  value: string;
+  onChange: (src: string) => void;
+  folder?: string;
+  hint?: string;
+}) {
+  const [busy, setBusy] = useState(false);
+
+  async function onFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setBusy(true);
+    try {
+      onChange(await uploadVideo(file, folder));
+    } catch (err) {
+      window.alert(
+        err instanceof OversizeVideoError
+          ? err.message
+          : `Не удалось загрузить видео${err instanceof Error && err.message ? `: ${err.message}` : ""}`,
+      );
+    } finally {
+      setBusy(false);
+      e.target.value = "";
+    }
+  }
+
+  return (
+    <div className="ad-field ad-image-field ad-image-field--wide">
+      <span>{label}</span>
+      <div className={`ad-upload ad-upload--video${value ? " has-img" : ""}${busy ? " is-busy" : ""}`}>
+        {value ? (
+          <video src={resolveSrc(value)} muted playsInline preload="metadata" controls={false} />
+        ) : (
+          <i className="ad-upload-empty" />
+        )}
+        <input type="file" accept={ACCEPT_VIDEO} onChange={onFile} />
+      </div>
+      {hint ? <p className="ad-hint">{hint}</p> : null}
+      {value ? (
         <button type="button" className="ad-ghost ad-clear-img" onClick={() => onChange("")}>
           Сбросить
         </button>

@@ -1,9 +1,12 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { pickLocale, useI18n } from "../i18n";
 import { MarkdownView } from "../lib/markdown";
+import { useArticleMedia } from "./ArticleMedia";
 import { EmbedBlock } from "./EmbedBlock";
 import { GooglePhotosGallery } from "./GooglePhotosGallery";
+import { ParallaxVideo } from "./ParallaxVideo";
+import { Reveal } from "./Reveal";
 import { resolveSrc } from "../media";
 import type { ArticleBlock, Publication } from "../types";
 
@@ -13,8 +16,50 @@ type ArticleViewProps = {
 
 export function ArticleView({ pub }: ArticleViewProps) {
   const { locale, loc, t } = useI18n();
+  const gate = useArticleMedia();
   const blocks = pickLocale(locale, pub.blocks, pub.enEnabled);
   const tag = pub.hashtags[0];
+  // Пока статья под экраном загрузки, появление блоков не запускаем.
+  const paused = Boolean(gate?.holding);
+
+  function renderBlock(block: ArticleBlock): ReactNode {
+    if (block.type === "heading") {
+      return <h2 className="block-heading">{block.text}</h2>;
+    }
+    if (block.type === "text") {
+      return <MarkdownView source={block.markdown} />;
+    }
+    if (block.type === "image") {
+      return (
+        <img
+          className="block-image"
+          src={resolveSrc(block.src)}
+          alt={block.alt}
+          loading="lazy"
+          decoding="async"
+        />
+      );
+    }
+    if (block.type === "video") {
+      // Параллакс-видео: кадр привязан к прокрутке статьи, плеера нет.
+      return <ParallaxVideo id={block.id} src={block.src} />;
+    }
+    if (block.type === "googlePhotos") {
+      return <GooglePhotosGallery albumUrl={block.albumUrl} />;
+    }
+    if (block.type === "link") {
+      return <ArticleLink block={block} />;
+    }
+    if (block.type === "embed") {
+      // Вставной HTML сторонних сервисов (iframe, виджеты, плееры…).
+      // Контент авторский — добавляется только из панели управления.
+      // EmbedBlock пишет код в DOM один раз и не трогает его при
+      // перерисовках, поэтому виджет не перезапускается от скролла
+      // статьи или фоновых обновлений данных.
+      return <EmbedBlock code={block.code} />;
+    }
+    return <ContactForm />;
+  }
 
   return (
     <article className="article">
@@ -23,45 +68,13 @@ export function ArticleView({ pub }: ArticleViewProps) {
       </div>
       <h1 className="stage-title">{loc(pub.title)}</h1>
       <div className="article-blocks">
-        {blocks.map((block) => {
-          if (block.type === "heading") {
-            return (
-              <h2 key={block.id} className="block-heading">
-                {block.text}
-              </h2>
-            );
-          }
-          if (block.type === "text") {
-            return <MarkdownView key={block.id} source={block.markdown} />;
-          }
-          if (block.type === "image") {
-            return (
-              <img
-                key={block.id}
-                className="block-image"
-                src={resolveSrc(block.src)}
-                alt={block.alt}
-                loading="lazy"
-                decoding="async"
-              />
-            );
-          }
-          if (block.type === "googlePhotos") {
-            return <GooglePhotosGallery key={block.id} albumUrl={block.albumUrl} />;
-          }
-          if (block.type === "link") {
-            return <ArticleLink key={block.id} block={block} />;
-          }
-          if (block.type === "embed") {
-            // Вставной HTML сторонних сервисов (iframe, виджеты, плееры…).
-            // Контент авторский — добавляется только из панели управления.
-            // EmbedBlock пишет код в DOM один раз и не трогает его при
-            // перерисовках, поэтому виджет не перезапускается от скролла
-            // статьи или фоновых обновлений данных.
-            return <EmbedBlock key={block.id} code={block.code} />;
-          }
-          return <ContactForm key={block.id} />;
-        })}
+        {/* Каждый блок появляется при прокрутке: fade плюс сдвиг снизу вверх —
+            та же анимация, что у карточек ленты. */}
+        {blocks.map((block) => (
+          <Reveal key={block.id} paused={paused}>
+            {renderBlock(block)}
+          </Reveal>
+        ))}
       </div>
     </article>
   );

@@ -1,4 +1,4 @@
-export type BlockType = "heading" | "text" | "image" | "googlePhotos" | "link" | "form" | "embed";
+export type BlockType = "heading" | "text" | "image" | "googlePhotos" | "link" | "form" | "embed" | "video";
 
 export type Locale = "en" | "ru";
 
@@ -12,7 +12,9 @@ export type ArticleBlock =
   | { id: string; type: "googlePhotos"; albumUrl: string }
   | { id: string; type: "link"; label: string; url: string; style?: "solid" | "ghost" }
   | { id: string; type: "form" }
-  | { id: string; type: "embed"; code: string };
+  | { id: string; type: "embed"; code: string }
+  /** Параллакс-видео: кадр привязан к прокрутке статьи, интерфейса плеера нет. */
+  | { id: string; type: "video"; src: string };
 
 export type Publication = {
   id: string;
