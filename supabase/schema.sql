@@ -68,18 +68,17 @@ end $$;
 -- Картинки (баннер, карточки, favicon) и видео параллакс-блоков хранятся
 -- в Storage, в базе — только ссылки. Анимированные GIF и APNG загружаются
 -- без пережатия, видео — тем более, поэтому лимит поднят до 50 МБ.
+--
+-- Типы файлов заданы шаблонами (image/*, video/*), а не перечнем: Supabase
+-- сверяет присланный MIME со списком буквально, а браузеры называют одно и то
+-- же видео по-разному (video/mp4, video/x-m4v, video/quicktime, video/3gpp…).
+-- Точный перечень рано или поздно заканчивался в панели ошибкой
+-- «mime type video/mp4 is not supported» — шаблон принимает любой формат
+-- своего семейства, по-прежнему не пуская в корзину ничего постороннего.
+-- Запуск файла заново чинит и корзину, созданную старой версией (только
+-- картинки), и корзину, настроенную руками в дашборде.
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
-values (
-  'media',
-  'media',
-  true,
-  52428800,
-  array[
-    'image/jpeg', 'image/png', 'image/apng', 'image/gif', 'image/webp', 'image/svg+xml',
-    'image/x-icon', 'image/vnd.microsoft.icon',
-    'video/mp4', 'video/webm', 'video/ogg', 'video/quicktime'
-  ]
-)
+values ('media', 'media', true, 52428800, array['image/*', 'video/*'])
 on conflict (id) do update set
   public = true,
   file_size_limit = 52428800,

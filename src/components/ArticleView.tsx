@@ -41,8 +41,9 @@ export function ArticleView({ pub }: ArticleViewProps) {
       );
     }
     if (block.type === "video") {
-      // Параллакс-видео: кадр привязан к прокрутке статьи, плеера нет.
-      return <ParallaxVideo id={block.id} src={block.src} />;
+      // Параллакс-блок: кадр привязан к прокрутке статьи, плеера нет.
+      // Источник — видеофайл или последовательность кадров (`frames`).
+      return <ParallaxVideo id={block.id} src={block.src} frames={block.frames} />;
     }
     if (block.type === "googlePhotos") {
       return <GooglePhotosGallery albumUrl={block.albumUrl} />;

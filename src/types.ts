@@ -13,8 +13,14 @@ export type ArticleBlock =
   | { id: string; type: "link"; label: string; url: string; style?: "solid" | "ghost" }
   | { id: string; type: "form" }
   | { id: string; type: "embed"; code: string }
-  /** Параллакс-видео: кадр привязан к прокрутке статьи, интерфейса плеера нет. */
-  | { id: string; type: "video"; src: string };
+  /**
+   * Параллакс-видео: кадр привязан к прокрутке статьи, интерфейса плеера нет.
+   *
+   * `frames` — тот же блок без видеофайла: последовательность кадров, которую
+   * панель нарезает из ролика, когда Storage не принимает видео (картинки
+   * корзина берёт всегда). Звук в таком блоке не нужен и не теряется.
+   */
+  | { id: string; type: "video"; src: string; frames?: string[] };
 
 export type Publication = {
   id: string;

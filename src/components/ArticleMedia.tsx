@@ -33,7 +33,12 @@ const GATE_TIMEOUT = 12000;
  */
 export function useArticleMediaGate(blocks: ArticleBlock[]): ArticleMediaGate {
   const pending = useMemo(
-    () => blocks.filter((b): b is Extract<ArticleBlock, { type: "video" }> => b.type === "video" && Boolean(b.src)).map((b) => b.id),
+    () =>
+      blocks
+        // Ждём и видеофайл, и нарезанные из него кадры: и то и другое
+        // показывает один и тот же параллакс-блок.
+        .filter((b): b is Extract<ArticleBlock, { type: "video" }> => b.type === "video" && (Boolean(b.src) || Boolean(b.frames?.length)))
+        .map((b) => b.id),
     [blocks],
   );
   const key = pending.join("|");

@@ -145,6 +145,16 @@ export async function inspectImage(file: File | Blob, filename = ""): Promise<Im
   if (type.includes("png") || ext === "png") {
     return { animated: false, vector: false, ext: "png", mime: "image/png" };
   }
+  // AVIF браузеры показывают сами, поэтому файл уходит как есть — но своим
+  // типом, иначе Storage положит его как JPEG и отдаст с неверным заголовком.
+  if (type.includes("avif") || ext === "avif") {
+    return { animated: false, vector: false, ext: "avif", mime: "image/avif" };
+  }
+  // HEIC/HEIF с телефона браузер чаще всего не читает: помечаем как «не для
+  // веба», чтобы prepareImageBlob перерисовала файл в JPEG, когда сможет.
+  if (type.includes("heic") || type.includes("heif") || ext === "heic" || ext === "heif") {
+    return { animated: false, vector: false, ext: "heic", mime: type || "image/heic" };
+  }
   return { animated: false, vector: false, ext: "jpg", mime: "image/jpeg" };
 }
 
