@@ -619,12 +619,67 @@
   min-height: 140px;
 }
 
-.ad-upload--video video {
+.ad-upload--video video,
+.ad-upload--video img {
   display: block;
   width: 100%;
   height: 180px;
   object-fit: contain;
   background: #000;
+}
+
+/* «Нарезаю кадры: 12 из 40» — чем занят запасной путь загрузки видео. */
+.ad-hint.ad-upload-progress {
+  color: #ffd9a8;
+}
+
+/* Сообщение, которое остаётся под полем загрузки: отказ или рассказ о том,
+   что панель сделала вместо него. Если база настроена не до конца — здесь же
+   готовый SQL-запрос с кнопкой копирования. */
+.ad-upload-report {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 217, 168, 0.08);
+  outline: 1px solid rgba(255, 217, 168, 0.3);
+  color: #ffe0bb;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.ad-upload-report.is-error {
+  background: rgba(255, 138, 168, 0.1);
+  outline-color: rgba(255, 138, 168, 0.35);
+  color: #ffc9d6;
+}
+
+.ad-upload-report p {
+  margin: 0;
+  line-height: 1.5;
+}
+
+.ad-upload-report pre {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(0, 0, 0, 0.4);
+  color: #dedede;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.ad-copy-sql {
+  align-self: flex-start;
+  height: 28px;
+  padding: 0 12px;
+  font-size: 10px;
 }
 
 .ad-upload-empty,
