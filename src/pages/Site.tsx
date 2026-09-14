@@ -196,8 +196,8 @@ export function SitePage() {
     <div className="page">
       <div className={`site${menuOpen ? " menu-open" : ""}`}>
         {!open && <Banner data={data.banner} variant="hero" />}
-        {/* Кнопка «закрыть» живёт в левом верхнем углу самой статьи
-            (.stage-close внутри Stage) — и на компьютере, и на телефоне. */}
+        {/* Кнопка «закрыть» живёт в углу самой статьи (.stage-close внутри
+            Stage): на компьютере — слева вверху, на телефоне — справа вверху. */}
         <nav className="desktop-menu" aria-label={t("Menu", "Меню")}>
           {MENU_PAGES.map((p) => (
             <button
