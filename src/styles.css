@@ -1137,7 +1137,9 @@ img {
 
 .stage-reader {
   position: relative;
-  z-index: 1;
+  /* Без z-index: контекст наложения здесь не создаётся, и sticky-хештег
+     (.article-top) может подняться над верхней подложкой (.stage-topfade),
+     которая лежит в том же stage. */
   height: 100%;
   overflow: auto;
   --reader-pad-top: 28px;
@@ -1179,9 +1181,10 @@ img {
 .article-top {
   position: sticky;
   top: 0;
-  /* Подложка stage-reader должна действительно перекрывать текст при
-     прокрутке, поэтому сам контекст статьи остаётся под ней. */
-  z-index: 1;
+  /* Хештег выше верхней затемняющей подложки (.stage-topfade, z-index 5),
+     чтобы при прокрутке он оставался читаемым поверх градиента. Заодно
+     sticky-хештег перекрывает уезжающий под него текст статьи. */
+  z-index: 6;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2176,11 +2179,12 @@ img {
 
   .mobile-sheet .stage-close {
     /* Кнопка находится вне scrollport статьи и всегда остаётся на одном
-       месте относительно окна просмотра — в левом верхнем углу. */
+       месте относительно окна просмотра — в правом верхнем углу,
+       с отступом 20px от верхней и правой границ. */
     position: fixed;
-    top: calc(28px + env(safe-area-inset-top, 0px));
-    left: 36px;
-    right: auto;
+    top: calc(20px + env(safe-area-inset-top, 0px));
+    right: 20px;
+    left: auto;
     z-index: 10;
   }
 
