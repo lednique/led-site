@@ -3,6 +3,7 @@ import { CookieNotice } from "./components/CookieNotice";
 import { I18nProvider } from "./i18n";
 import { AdminPage } from "./pages/Admin";
 import { SitePage } from "./pages/Site";
+import { RegionProvider } from "./region";
 import { useBrandAssets, useHydrateSite, useThemeColor } from "./store";
 
 export default function App() {
@@ -11,22 +12,26 @@ export default function App() {
   useThemeColor();
   return (
     <I18nProvider>
-      {/* Подложка под системным статус-баром: видна только в установленном
-          PWA на iOS (там бар прозрачный и контент уходит под него).
-          Статус-бар всегда непрозрачно чёрный. */}
-      <div className="status-bar-fill" aria-hidden="true" />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<SitePage />} />
-          <Route path="/p/:id" element={<SitePage />} />
-          <Route path="/m/:page" element={<SitePage />} />
-          <Route path="/privacy" element={<SitePage />} />
-          <Route path="/admin" element={<AdminPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-        {/* Тост о cookie поверх Splash Screen — только при первом визите. */}
-        <CookieNotice />
-      </BrowserRouter>
+      {/* Регион по IP: российская версия сайта отличается от международной
+          (см. src/region.tsx и api/region.ts). */}
+      <RegionProvider>
+        {/* Подложка под системным статус-баром: видна только в установленном
+            PWA на iOS (там бар прозрачный и контент уходит под него).
+            Статус-бар всегда непрозрачно чёрный. */}
+        <div className="status-bar-fill" aria-hidden="true" />
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={<SitePage />} />
+            <Route path="/p/:id" element={<SitePage />} />
+            <Route path="/m/:page" element={<SitePage />} />
+            <Route path="/privacy" element={<SitePage />} />
+            <Route path="/admin" element={<AdminPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+          {/* Тост о cookie поверх Splash Screen — только при первом визите. */}
+          <CookieNotice />
+        </BrowserRouter>
+      </RegionProvider>
     </I18nProvider>
   );
 }

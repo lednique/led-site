@@ -1,6 +1,8 @@
 import { useI18n } from "../i18n";
 import { cardSurface } from "../lib/color";
 import { resolveSrc } from "../media";
+import { isRussianRegion, useRegion } from "../region";
+import { TELEGRAM_HANDLE, TELEGRAM_URL } from "../contacts";
 import type { Publication, SocialItem } from "../types";
 import { LinkIcon } from "./Icons";
 
@@ -59,8 +61,37 @@ export function CardSkeleton() {
   );
 }
 
+/**
+ * Блок «Соцсети».
+ *
+ * Международная версия показывает иконки из панели (data.socials).
+ * Российская версия иконок не показывает вообще — вместо них текстовый
+ * ник Telegram, который ведёт в тот же чат. Причина юридическая: иконки
+ * Instagram и Facebook — символика Meta Platforms Inc., деятельность
+ * которой признана в РФ экстремистской и запрещена (ч. 1 ст. 20.3 КоАП),
+ * а ссылка на Telegram как текст ничем не ограничена.
+ */
 export function SocialCard({ items }: { items: SocialItem[] }) {
   const { t } = useI18n();
+  const region = useRegion();
+  const russian = isRussianRegion(region);
+
+  if (russian) {
+    return (
+      <div className="social-card card--enter" style={{ animationDelay: "0ms" }}>
+        <div className="card-body">
+          <div className="card-title">{t("Social Networks", "Соцсети")}</div>
+          <div className="social-well social-well--handle">
+            <a className="social-handle" href={TELEGRAM_URL} target="_blank" rel="noreferrer">
+              {TELEGRAM_HANDLE}
+            </a>
+          </div>
+        </div>
+        <span className="card-chrome" aria-hidden />
+      </div>
+    );
+  }
+
   if (items.length === 0) return null;
   return (
     <div className="social-card card--enter" style={{ animationDelay: "0ms" }}>

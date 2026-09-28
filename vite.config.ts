@@ -2,77 +2,60 @@ import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 
 /**
- * В dev-режиме serverless-функции Vercel не работают, поэтому поднимаем
- * `/api/commission` прямо внутри dev-сервера Vite — с той же логикой,
- * что и в продакшне (`server/commission.ts`).
+ * `/api/region` в dev-режиме: Vercel-функции локально не работают, поэтому
+ * регион отдаёт сам dev-сервер.
+ *
+ * По умолчанию — «ru», как и в продакшне, когда страна посетителя не
+ * определилась (российская версия не показывает иконки соцсетей Meta).
+ * Посмотреть международную версию можно тремя способами:
+ *   - `VITE_DEV_REGION=global` в `.env.local`;
+ *   - подставить гео-заголовок Vercel:
+ *     `curl -H "x-vercel-ip-country: US" http://localhost:5173/api/region`;
+ *   - параметр `?region=global` в адресной строке (обрабатывает клиент,
+ *     см. src/lib/region.ts), `?region=auto` возвращает определение заново.
  */
-function commissionDevApi(): Plugin {
+function regionDevApi(): Plugin {
+  const handle = (
+    req: import("node:http").IncomingMessage,
+    res: import("node:http").ServerResponse,
+  ) => {
+    // Локально гео-заголовка Vercel нет. Для проверки продакшн-логики можно
+    // подставить его самому:  curl -H "x-vercel-ip-country: US" /api/region
+    const raw = req.headers["x-vercel-ip-country"];
+    const country = (Array.isArray(raw) ? raw[0] : raw ?? "").trim().toUpperCase();
+
+    let region: "ru" | "global";
+    if (country) region = country !== "RU" ? "global" : "ru";
+    else region = process.env.VITE_DEV_REGION === "global" ? "global" : "ru";
+
+    res.statusCode = 200;
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify({ region, country }));
+  };
+
   return {
-    name: "led-commission-dev-api",
+    name: "led-region-dev-api",
     apply: "serve",
     configureServer(server) {
-      server.middlewares.use("/api/commission", async (req, res) => {
-        const sendJson = (status: number, body: unknown) => {
-          res.statusCode = status;
-          res.setHeader("Cache-Control", "no-store");
-          res.setHeader("Content-Type", "application/json");
-          res.end(JSON.stringify(body));
-        };
-
-        if (req.method === "OPTIONS") {
-          res.setHeader("Allow", "POST, OPTIONS");
-          res.statusCode = 204;
-          res.end();
-          return;
-        }
-        if (req.method !== "POST") {
-          res.setHeader("Allow", "POST, OPTIONS");
-          sendJson(405, { success: false, error: "Method not allowed" });
-          return;
-        }
-
-        try {
-          const chunks: Buffer[] = [];
-          for await (const chunk of req) chunks.push(chunk as Buffer);
-
-          let body: Record<string, unknown> = {};
-          try {
-            const parsed = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}");
-            if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
-              body = parsed as Record<string, unknown>;
-            }
-          } catch {
-            body = {};
-          }
-
-          const { handleCommission } = await server.ssrLoadModule("/server/commission.ts");
-          const forwarded = req.headers["x-forwarded-for"];
-          const ip =
-            (Array.isArray(forwarded) ? forwarded[0] : forwarded ?? "").split(",")[0].trim() ||
-            req.socket.remoteAddress ||
-            "";
-
-          const result = await handleCommission(body, ip);
-          sendJson(result.status, result.body);
-        } catch (err) {
-          console.error("[commission] unexpected dev handler error:", err);
-          sendJson(500, { success: false, error: "Could not deliver the message. Try again later." });
-        }
-      });
+      server.middlewares.use("/api/region", handle);
+    },
+    configurePreviewServer(server) {
+      server.middlewares.use("/api/region", handle);
     },
   };
 }
 
 export default defineConfig(({ mode }) => {
-  // Подтягиваем TELEGRAM_* из .env / .env.local в process.env,
-  // чтобы dev-эндпоинт видел их так же, как Vercel в продакшне.
+  // Подтягиваем VITE_DEV_REGION из .env / .env.local в process.env,
+  // чтобы dev-эндпоинт `/api/region` видел его так же, как Vercel в продакшне.
   const env = loadEnv(mode, process.cwd(), "");
-  for (const key of ["TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"]) {
+  for (const key of ["VITE_DEV_REGION"]) {
     if (env[key] && !process.env[key]) process.env[key] = env[key];
   }
 
   return {
-    plugins: [react(), commissionDevApi()],
+    plugins: [react(), regionDevApi()],
     server: {
       host: "0.0.0.0",
       port: 5173,
