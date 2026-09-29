@@ -70,7 +70,7 @@ export const privacyPublication: Publication = {
       H("pp-h3", "3. Technical data"),
       T(
         "pp-t3",
-        "Like any website, the Website’s infrastructure receives technical data with each request: IP address, browser type and version (user agent), requested pages, referrer. This data is processed by the hosting provider to deliver pages, keep the Website available and protect it from abuse. The Operator does not collect, store or analyse it, and there are no Operator-owned analytics.\n\nLegal basis: the Operator’s legitimate interests (Article 6(1)(6) of Federal Law No. 152-FZ of 27 July 2006 “On Personal Data”).",
+        "Like any website, the Website’s infrastructure receives technical data with each request: IP address, browser type and version (user agent), requested pages, referrer. This data is processed by the hosting provider to deliver pages, keep the Website available and protect it from abuse. The Operator does not collect, store or analyse it, and there are no Operator-owned analytics.\n\nLegal basis: the exercise of the Operator’s rights and legitimate interests (Article 6(1)(7) of Federal Law No. 152-FZ of 27 July 2006 “On Personal Data”).",
       ),
       H("pp-h4", "4. Data stored in your browser"),
       T(
@@ -85,7 +85,7 @@ export const privacyPublication: Publication = {
       H("pp-h6", "6. If you write to us"),
       T(
         "pp-t6",
-        "When you send an email or a Telegram message, the Operator processes your address or nickname and the content of your message in order to reply, and — if we agree on cooperation — to conclude and perform a services contract (Article 6(1)(2) and 6(1)(5) of Federal Law No. 152-FZ). The messages are kept as long as needed for the reply and the project, then deleted; deletion is recorded by an internal act.",
+        "When you send an email or a Telegram message, the Operator processes your address or nickname and the content of your message in order to reply, and — if we agree on cooperation — to conclude and perform a services contract (Article 6(1)(5) of Federal Law No. 152-FZ: performance of a contract to which the data subject is a party, and conclusion of a contract at the data subject’s initiative). The messages are kept as long as needed for the reply and the project, then deleted; deletion is recorded by an internal act.",
       ),
       H("pp-h7", "7. Security"),
       T(
