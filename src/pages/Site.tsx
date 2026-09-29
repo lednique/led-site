@@ -5,7 +5,7 @@ import { SiteLoader } from "../components/Loader";
 import { MenuPanel } from "../components/MenuPanel";
 import { Sidebar } from "../components/Sidebar";
 import { Stage } from "../components/Stage";
-import { MENU_PAGES, pageLabel } from "../defaults";
+import { MENU_PAGES, commissionMailto, pageLabel } from "../defaults";
 import { useI18n } from "../i18n";
 import { resolveSrc } from "../media";
 import { privacyPublication } from "../privacy";
@@ -204,18 +204,26 @@ export function SitePage() {
         {/* Кнопка «закрыть» живёт в углу самой статьи (.stage-close внутри
             Stage): на компьютере — слева вверху, на телефоне — справа вверху. */}
         <nav className="desktop-menu" aria-label={t("Menu", "Меню")}>
-          {MENU_PAGES.map((p) => (
-            <button
-              key={p.key}
-              type="button"
-              className="menu-item"
-              onClick={() => navigate(`/m/${p.key}`)}
-            >
+          {MENU_PAGES.map((p) => {
+            const text = (
               <span className="menu-item-text">
                 {locale === "ru" ? pageLabel(data.pages, p.key).ru : pageLabel(data.pages, p.key).en}
               </span>
-            </button>
-          ))}
+            );
+            // «Заказать работу» сразу открывает окно нового письма.
+            if (p.key === "commission") {
+              return (
+                <a key={p.key} className="menu-item" href={commissionMailto(data.pages, locale)}>
+                  {text}
+                </a>
+              );
+            }
+            return (
+              <button key={p.key} type="button" className="menu-item" onClick={() => navigate(`/m/${p.key}`)}>
+                {text}
+              </button>
+            );
+          })}
         </nav>
         <Sidebar
           data={data}

@@ -14,7 +14,9 @@ function inline(s: string): string {
     .replace(
       /\[([^\]]+)\]\((https?:\/\/[^\s)]+|\/[^\s)]*)\)/g,
       '<a href="$2" target="_blank" rel="noreferrer">$1</a>',
-    );
+    )
+    // mailto открывается в почтовой программе — новая вкладка не нужна.
+    .replace(/\[([^\]]+)\]\((mailto:[^\s)]+)\)/g, '<a href="$2">$1</a>');
 }
 
 export function renderMarkdown(source: string): string {

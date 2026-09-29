@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { MENU_PAGES, pageLabel } from "../defaults";
+import { MENU_PAGES, commissionMailto, pageLabel } from "../defaults";
 import { useSite } from "../store";
 import { useI18n } from "../i18n";
 import type { MenuPageKey } from "../types";
@@ -27,18 +27,31 @@ export function MenuPanel({ open, onClose }: MenuPanelProps) {
   return (
     <div className={`menu-panel${open ? " is-open" : ""}`} aria-hidden={!open}>
       <div className="menu-items">
-        {MENU_PAGES.map((p) => (
-          <button
-            key={p.key}
-            type="button"
-            className="menu-item"
-            onClick={() => go(p.key)}
-          >
+        {MENU_PAGES.map((p) => {
+          const text = (
             <span className="menu-item-text">
               {locale === "ru" ? pageLabel(data.pages, p.key).ru : pageLabel(data.pages, p.key).en}
             </span>
-          </button>
-        ))}
+          );
+          // «Заказать работу» сразу открывает окно нового письма.
+          if (p.key === "commission") {
+            return (
+              <a
+                key={p.key}
+                className="menu-item"
+                href={commissionMailto(data.pages, locale)}
+                onClick={onClose}
+              >
+                {text}
+              </a>
+            );
+          }
+          return (
+            <button key={p.key} type="button" className="menu-item" onClick={() => go(p.key)}>
+              {text}
+            </button>
+          );
+        })}
       </div>
       <div className="menu-foot">
         <span className="menu-foot-line">

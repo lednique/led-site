@@ -8,7 +8,9 @@ import { GooglePhotosGallery } from "./GooglePhotosGallery";
 import { ParallaxVideo } from "./ParallaxVideo";
 import { Reveal } from "./Reveal";
 import { resolveSrc } from "../media";
-import { CONTACT_EMAIL, TELEGRAM_HANDLE, TELEGRAM_URL, mailtoUrl } from "../contacts";
+import { CONTACT_EMAIL, TELEGRAM_HANDLE, TELEGRAM_URL } from "../contacts";
+import { commissionMailto } from "../defaults";
+import { useSite } from "../store";
 import type { ArticleBlock, Publication } from "../types";
 
 type ArticleViewProps = {
@@ -130,19 +132,16 @@ function ArticleLink({ block }: { block: Extract<ArticleBlock, { type: "link" }>
  * РФ). Подробный разбор — docs/legal-review-ru.md.
  */
 function CommissionContact() {
-  const { t } = useI18n();
-  const subject = t("Commission request — LEDNIQUE", "Заявка на работу — LEDNIQUE");
-  const body = t(
-    "Hello!\n\nI’d like to discuss a project:\n— what is needed:\n— deadline:\n— budget:\n\n",
-    "Здравствуйте!\n\nХочу обсудить проект:\n— что нужно сделать:\n— сроки:\n— бюджет:\n\n",
-  );
+  const { locale, t } = useI18n();
+  const data = useSite();
+  const href = commissionMailto(data.pages, locale);
 
   return (
     <div className="glass-form">
       <p className="form-note">
         {t("Tell me about your project — I’ll reply by email.", "Расскажите о проекте — отвечу письмом.")}
       </p>
-      <a className="submit-btn tg-cta" href={mailtoUrl(subject, body)}>
+      <a className="submit-btn tg-cta" href={href}>
         {CONTACT_EMAIL}
       </a>
       <p className="form-note form-note--muted">

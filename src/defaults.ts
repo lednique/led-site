@@ -1,6 +1,8 @@
+import { mailtoUrl } from "./contacts";
 import type {
   ArticleBlock,
   Localized,
+  MailTemplate,
   MenuPageKey,
   PageContent,
   Publication,
@@ -25,6 +27,30 @@ export const MENU_PAGES: { key: MenuPageKey; label: Localized }[] = [
   { key: "commission", label: L("Commission Request", "Заказать работу") },
   { key: "contacts", label: L("Contacts", "Контакты") },
 ];
+
+/** Заводской шаблон письма для кнопки «Заказать работу». */
+export const DEFAULT_MAIL: MailTemplate = {
+  subject: L("Commission request — LEDNIQUE", "Заявка на работу — LEDNIQUE"),
+  body: L(
+    "Hello!\n\nI’d like to discuss a project:\n— what is needed:\n— deadline:\n— budget:\n\n",
+    "Здравствуйте!\n\nХочу обсудить проект:\n— что нужно сделать:\n— сроки:\n— бюджет:\n\n",
+  ),
+};
+
+/** Шаблон письма: из сохранённых страниц или заводской. */
+export function pageMail(pages: SitePages | undefined): MailTemplate {
+  const saved = pages?.commission?.mail;
+  return {
+    subject: { ...DEFAULT_MAIL.subject, ...saved?.subject },
+    body: { ...DEFAULT_MAIL.body, ...saved?.body },
+  };
+}
+
+/** Ссылка mailto для кнопки «Заказать работу» на нужном языке. */
+export function commissionMailto(pages: SitePages | undefined, locale: "en" | "ru"): string {
+  const mail = pageMail(pages);
+  return mailtoUrl(mail.subject[locale], mail.body[locale]);
+}
 
 /** Стартовое содержимое страницы меню — заголовок с именем страницы. */
 function pageStarter(label: Localized): PageContent {
@@ -64,6 +90,7 @@ export function mergePages(raw: unknown, fallback: SitePages = defaultPages()): 
       label: incoming?.label?.en || incoming?.label?.ru
         ? { en: incoming.label?.en || meta.label.en, ru: incoming.label?.ru || meta.label.ru }
         : (base.label ?? { ...meta.label }),
+      ...(incoming?.mail || base.mail ? { mail: incoming?.mail ?? base.mail } : {}),
     };
   }
   return next;
