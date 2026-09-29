@@ -1828,6 +1828,7 @@ a.tg-cta {
   position: relative;
   overflow: hidden;
   border: none;
+  text-decoration: none;
   cursor: pointer;
   color: #fff;
   font: inherit;

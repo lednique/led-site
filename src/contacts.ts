@@ -19,9 +19,16 @@ export const CONTACT_EMAIL = "lednique1@ya.ru";
 export const TELEGRAM_HANDLE = "@lednique";
 export const TELEGRAM_URL = "https://t.me/lednique";
 
-/** Ссылка mailto с готовой темой и (опционально) текстом письма. */
+/**
+ * Ссылка mailto с готовой темой и (опционально) текстом письма.
+ *
+ * Кодируем через encodeURIComponent, а не URLSearchParams: тот заменяет
+ * пробел на «+», а в mailto «+» — обычный плюс, и он попадает в письмо.
+ * Переводы строк — CRLF, как требует RFC 6068.
+ */
 export function mailtoUrl(subject: string, body?: string): string {
-  const params = new URLSearchParams({ subject });
-  if (body) params.set("body", body);
-  return `mailto:${CONTACT_EMAIL}?${params.toString()}`;
+  const enc = (v: string) => encodeURIComponent(v.replace(/\r?\n/g, "\r\n"));
+  const parts = [`subject=${enc(subject)}`];
+  if (body) parts.push(`body=${enc(body)}`);
+  return `mailto:${CONTACT_EMAIL}?${parts.join("&")}`;
 }

@@ -77,7 +77,15 @@ export type PageContent = {
   ru: ArticleBlock[];
   /** Название кнопки в шапке. Если нет — берём подпись из MENU_PAGES. */
   label?: Localized;
+  /**
+   * Шаблон письма (только у страницы «Заказать работу»): кнопка открывает
+   * почтовую программу посетителя с этой темой и текстом.
+   */
+  mail?: MailTemplate;
 };
+
+/** Тема и текст письма на двух языках. */
+export type MailTemplate = { subject: Localized; body: Localized };
 
 export type SitePages = Record<MenuPageKey, PageContent>;
 

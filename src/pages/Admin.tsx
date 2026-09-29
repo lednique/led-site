@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { BlockEditor } from "../admin/BlockEditor";
 import { Field, HashtagField, ImagePick, SvgPick, TextArea, TextInput } from "../admin/fields";
-import { DEFAULT_ACCENT, MENU_PAGES, pageLabel } from "../defaults";
+import { DEFAULT_ACCENT, MENU_PAGES, pageLabel, pageMail } from "../defaults";
 import { cardSurface, uid } from "../lib/color";
 import { alignPublicationBlocks, copyBlocks, mirrorText, syncBlocks } from "../lib/mirror";
 import { hasSupabase, supabase } from "../lib/supabase";
@@ -19,7 +19,16 @@ import {
   useSite,
   useSyncState,
 } from "../store";
-import type { ArticleBlock, Locale, Localized, MenuPageKey, NavItem, Publication, SocialItem } from "../types";
+import type {
+  ArticleBlock,
+  Locale,
+  Localized,
+  MailTemplate,
+  MenuPageKey,
+  NavItem,
+  Publication,
+  SocialItem,
+} from "../types";
 
 type Tab = "cards" | "banner" | "buttons" | "menu";
 
@@ -747,7 +756,7 @@ function MenuTab() {
     <div className="ad-split">
       <aside className="ad-list">
         <p className="ad-hint">
-          Три кнопки верхнего меню. Откройте, чтобы править название и статью — как карточку, но без картинки, цвета и типа.
+          Три кнопки верхнего меню. Откройте, чтобы править название и статью — как карточку, но без картинки, цвета и типа. У кнопки «Заказать работу» вместо статьи — тема и текст письма.
         </p>
         {MENU_PAGES.map((p) => {
           const label = pageLabel(data.pages, p.key);
@@ -781,7 +790,16 @@ function MenuPageForm({ pageKey }: { pageKey: MenuPageKey }) {
   const blocks = alignPublicationBlocks({ en: raw.en ?? [], ru: raw.ru ?? [] }, "en");
   const label = pageLabel(data.pages, pageKey);
 
-  function patchPage(partial: { en?: ArticleBlock[]; ru?: ArticleBlock[]; label?: Localized }) {
+  const isCommission = pageKey === "commission";
+  const mail = pageMail(data.pages);
+
+  function patchPage(partial: {
+    en?: ArticleBlock[];
+    ru?: ArticleBlock[];
+    label?: Localized;
+    mail?: MailTemplate;
+  }) {
+    const savedMail = raw.mail ?? (isCommission ? mail : undefined);
     patchSite({
       pages: {
         ...data.pages,
@@ -789,6 +807,7 @@ function MenuPageForm({ pageKey }: { pageKey: MenuPageKey }) {
           en: partial.en ?? blocks.en,
           ru: partial.ru ?? blocks.ru,
           label: partial.label ?? label,
+          ...(partial.mail ?? savedMail ? { mail: partial.mail ?? savedMail } : {}),
         },
       },
     });
@@ -802,6 +821,10 @@ function MenuPageForm({ pageKey }: { pageKey: MenuPageKey }) {
 
   function patchTitle(value: string) {
     patchPage({ label: mirrorText(label, lang, value) });
+  }
+
+  function patchMail(key: keyof MailTemplate, value: string) {
+    patchPage({ mail: { ...mail, [key]: mirrorText(mail[key], lang, value) } });
   }
 
   return (
@@ -821,13 +844,34 @@ function MenuPageForm({ pageKey }: { pageKey: MenuPageKey }) {
         <TextInput value={label[lang]} onChange={(e) => patchTitle(e.target.value)} required />
       </Field>
 
-      <div className="ad-article">
-        <h3>Редактор статьи · {lang === "en" ? "EN" : "RU"}</h3>
-        <p className="ad-hint">
-          Те же блоки, что у карточек. Структура, изображения и ссылки общие для обеих версий; текст копируется, пока его не перевели.
-        </p>
-        <BlockEditor blocks={blocks[lang]} onChange={patchBlocks} />
-      </div>
+      {isCommission ? (
+        <div className="ad-article">
+          <h3>Письмо · {lang === "en" ? "EN" : "RU"}</h3>
+          <p className="ad-hint">
+            Кнопка сразу открывает у посетителя окно нового письма на вашу почту с этой темой и текстом.
+            Отдельной страницы у кнопки нет. Текст можно писать в несколько строк; текст русской версии
+            копируется с английской, пока его не перевели.
+          </p>
+          <Field label="Тема письма">
+            <TextInput value={mail.subject[lang]} onChange={(e) => patchMail("subject", e.target.value)} />
+          </Field>
+          <Field label="Текст письма">
+            <TextArea
+              rows={9}
+              value={mail.body[lang]}
+              onChange={(e) => patchMail("body", e.target.value)}
+            />
+          </Field>
+        </div>
+      ) : (
+        <div className="ad-article">
+          <h3>Редактор статьи · {lang === "en" ? "EN" : "RU"}</h3>
+          <p className="ad-hint">
+            Те же блоки, что у карточек. Структура, изображения и ссылки общие для обеих версий; текст копируется, пока его не перевели.
+          </p>
+          <BlockEditor blocks={blocks[lang]} onChange={patchBlocks} />
+        </div>
+      )}
     </div>
   );
 }
