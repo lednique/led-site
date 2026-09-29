@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useLocation, useMatch, useNavigate, useParams } from "react-router-dom";
+import { Link, useLocation, useMatch, useNavigate, useParams } from "react-router-dom";
 import { Banner } from "../components/Banner";
 import { SiteLoader } from "../components/Loader";
 import { MenuPanel } from "../components/MenuPanel";
@@ -9,6 +9,7 @@ import { MENU_PAGES, pageLabel } from "../defaults";
 import { useI18n } from "../i18n";
 import { resolveSrc } from "../media";
 import { privacyPublication } from "../privacy";
+import { useRegion } from "../region";
 import { useSite, useSiteReady, visiblePublications } from "../store";
 import type { Localized, MenuPageKey, PageContent, Publication } from "../types";
 
@@ -34,6 +35,10 @@ function pageAsPublication(key: MenuPageKey, content: PageContent, label: Locali
 export function SitePage() {
   const data = useSite();
   const ready = useSiteReady();
+  // Регион (ru / global) определяем до показа ленты: блоки «Соцсети» и
+  // «Заказать работу» отличаются в двух версиях, и переключение на глазах
+  // у посетителя выглядело бы как мерцание.
+  const { pending: regionPending } = useRegion();
   const { id, page } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -188,7 +193,7 @@ export function SitePage() {
     };
   }, [open]);
 
-  if (!ready || !cardsReady) {
+  if (!ready || !cardsReady || regionPending) {
     return <SiteLoader />;
   }
 
@@ -233,17 +238,24 @@ export function SitePage() {
       {/* Подвал вне .site: градиент привязан к нижней границе страницы и не
           уезжает вместе с сайтом, когда открыто верхнее меню. */}
       <div className="page-footer">
-        <p>
-          <button
-            type="button"
-            className="lang-switch"
-            onClick={() => setLocale(locale === "en" ? "ru" : "en")}
-          >
-            {locale === "en" ? "EN" : "RU"}
-          </button>
-          <span className="lang-dot"> · </span>
-          {t("© LEDNIQUE — 2026. All Rights Reserved.", "© LEDNIQUE — 2026. Все права защищены.")}
-        </p>
+        <div className="foot-lines">
+          <p>
+            <button
+              type="button"
+              className="lang-switch"
+              onClick={() => setLocale(locale === "en" ? "ru" : "en")}
+            >
+              {locale === "en" ? "EN" : "RU"}
+            </button>
+            <span className="lang-dot"> · </span>
+            {t("© LEDNIQUE — 2026. All Rights Reserved.", "© LEDNIQUE — 2026. Все права защищены.")}
+          </p>
+          <p>
+            <Link to="/privacy" state={{ from: location.pathname }}>
+              {t("Privacy Policy", "Политика конфиденциальности")}
+            </Link>
+          </p>
+        </div>
       </div>
       <MenuPanel open={menuOpen} onClose={() => setMenuOpen(false)} />
     </div>

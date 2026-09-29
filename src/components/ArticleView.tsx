@@ -1,5 +1,5 @@
-import { useState, type FormEvent, type ReactNode } from "react";
-import { Link, useLocation } from "react-router-dom";
+import type { ReactNode } from "react";
+import { Link } from "react-router-dom";
 import { pickLocale, useI18n } from "../i18n";
 import { MarkdownView } from "../lib/markdown";
 import { useArticleMedia } from "./ArticleMedia";
@@ -8,6 +8,7 @@ import { GooglePhotosGallery } from "./GooglePhotosGallery";
 import { ParallaxVideo } from "./ParallaxVideo";
 import { Reveal } from "./Reveal";
 import { resolveSrc } from "../media";
+import { CONTACT_EMAIL, TELEGRAM_HANDLE, TELEGRAM_URL, mailtoUrl } from "../contacts";
 import type { ArticleBlock, Publication } from "../types";
 
 type ArticleViewProps = {
@@ -59,7 +60,7 @@ export function ArticleView({ pub }: ArticleViewProps) {
       // статьи или фоновых обновлений данных.
       return <EmbedBlock code={block.code} />;
     }
-    return <ContactForm />;
+    return <CommissionContact />;
   }
 
   return (
@@ -118,118 +119,38 @@ function ArticleLink({ block }: { block: Extract<ArticleBlock, { type: "link" }>
   );
 }
 
-function ContactForm() {
-  const { t, locale } = useI18n();
-  const location = useLocation();
-  const [sent, setSent] = useState(false);
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
-
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    if (sending) return;
-
-    const form = e.currentTarget;
-    const data = new FormData(form);
-    const payload = {
-      name: String(data.get("name") ?? "").trim(),
-      email: String(data.get("email") ?? "").trim(),
-      message: String(data.get("message") ?? "").trim(),
-      company: String(data.get("company") ?? ""),
-      page: typeof window === "undefined" ? "" : window.location.href,
-      locale,
-    };
-
-    if (!payload.name || !payload.email || !payload.message) return;
-
-    setSending(true);
-    setError("");
-    try {
-      const resp = await fetch("/api/commission", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const result = (await resp.json().catch(() => ({}))) as {
-        success?: boolean;
-        error?: string;
-      };
-      if (!resp.ok || !result.success) {
-        console.error("[contact-form] api error", resp.status, result.error);
-        setError(
-          resp.status === 429
-            ? t("Too many attempts. Please try again later.", "Слишком много попыток. Попробуйте позже.")
-            : resp.status === 503
-              ? t(
-                  "The message service is not configured yet. Please try again later.",
-                  "Сервис отправки ещё не настроен. Попробуйте позже.",
-                )
-              : t(
-                  "Could not send. Please try again later.",
-                  "Не удалось отправить. Попробуйте позже.",
-                ),
-        );
-        return;
-      }
-      form.reset();
-      setSent(true);
-    } catch (err) {
-      console.error("[contact-form]", err);
-      setError(
-        t(
-          "Could not send. Please try again later.",
-          "Не удалось отправить. Попробуйте позже.",
-        ),
-      );
-    } finally {
-      setSending(false);
-    }
-  }
-
-  if (sent) {
-    return <p className="form-thanks">{t("Received. I’ll write back.", "Получено. Я отвечу.")}</p>;
-  }
+/**
+ * Блок «Заказать работу» (в панели — блок типа «Заявки»).
+ *
+ * Формы на сайте нет ни в одной версии: кнопка открывает почтовую программу
+ * посетителя (mailto) с готовой темой и заготовкой письма, рядом — ссылка
+ * на Telegram. Переписка идёт в почтовом клиенте и мессенджере посетителя,
+ * то есть вне сайта, поэтому сайт не собирает персональные данные и не
+ * попадает под ч. 5 ст. 18 152-ФЗ (первичный сбор данных в базы за пределами
+ * РФ). Подробный разбор — docs/legal-review-ru.md.
+ */
+function CommissionContact() {
+  const { t } = useI18n();
+  const subject = t("Commission request — LEDNIQUE", "Заявка на работу — LEDNIQUE");
+  const body = t(
+    "Hello!\n\nI’d like to discuss a project:\n— what is needed:\n— deadline:\n— budget:\n\n",
+    "Здравствуйте!\n\nХочу обсудить проект:\n— что нужно сделать:\n— сроки:\n— бюджет:\n\n",
+  );
 
   return (
-    <form className="glass-form" onSubmit={handleSubmit} noValidate={false}>
-      <label>
-        {t("Name", "Имя")}
-        <input name="name" required autoComplete="name" disabled={sending} />
-      </label>
-      <label>
-        {t("Email", "Почта")}
-        <input name="email" type="email" required autoComplete="email" disabled={sending} />
-      </label>
-      <label>
-        {t("Message", "Сообщение")}
-        <textarea name="message" rows={4} required disabled={sending} />
-      </label>
-      <p className="form-consent">
-        {t(
-          "By pressing “Send”, you agree to the ",
-          "Нажимая кнопку «Отправить», вы соглашаетесь с ",
-        )}
-        <Link to="/privacy" state={{ from: location.pathname }}>
-          {t("privacy policy", "политикой конфиденциальности")}
-        </Link>
-        .
+    <div className="glass-form">
+      <p className="form-note">
+        {t("Tell me about your project — I’ll reply by email.", "Расскажите о проекте — отвечу письмом.")}
       </p>
-      {/* honeypot — невидимое поле, заполняют только спам-боты */}
-      <input
-        className="form-honeypot"
-        name="company"
-        tabIndex={-1}
-        autoComplete="off"
-        aria-hidden="true"
-      />
-      {error ? (
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-      ) : null}
-      <button className="submit-btn" type="submit" disabled={sending}>
-        {sending ? t("Sending…", "Отправляем…") : t("Send", "Отправить")}
-      </button>
-    </form>
+      <a className="submit-btn tg-cta" href={mailtoUrl(subject, body)}>
+        {CONTACT_EMAIL}
+      </a>
+      <p className="form-note form-note--muted">
+        {t("or write in Telegram ", "или напишите в Telegram ")}
+        <a className="inline-link" href={TELEGRAM_URL} target="_blank" rel="noreferrer">
+          {TELEGRAM_HANDLE}
+        </a>
+      </p>
+    </div>
   );
 }

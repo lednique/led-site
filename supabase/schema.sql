@@ -35,6 +35,17 @@ alter table public.site_settings add column if not exists theme_color text not n
 insert into public.site_settings (id) values (1)
 on conflict (id) do nothing;
 
+-- Доступ: чтение — всем (сайт публичный), запись — только владельцу после входа
+-- в панель через Supabase Auth (роль `authenticated`).
+--
+-- Раньше политики разрешали запись любому, у кого есть анонимный ключ, а ключ
+-- лежит во фронтенде: содержимое сайта и файлы в Storage мог изменить или
+-- удалить любой посетитель. Для 152-ФЗ это ещё и невыполнение обязанности
+-- принимать меры защиты (ст. 19, ПП РФ № 1119).
+--
+-- ВАЖНО: после запуска этого файла панель /admin просит почту и пароль
+-- пользователя Supabase (Authentication → Users → Add user, галочка
+-- Auto Confirm User). Подробности — SETUP.md, часть 4 «Панель управления».
 alter table public.publications enable row level security;
 alter table public.site_settings enable row level security;
 
@@ -43,10 +54,10 @@ drop policy if exists "pub write" on public.publications;
 drop policy if exists "set read" on public.site_settings;
 drop policy if exists "set write" on public.site_settings;
 
-create policy "pub read" on public.publications for select using (true);
-create policy "pub write" on public.publications for all using (true) with check (true);
-create policy "set read" on public.site_settings for select using (true);
-create policy "set write" on public.site_settings for all using (true) with check (true);
+create policy "pub read" on public.publications for select to anon, authenticated using (true);
+create policy "pub write" on public.publications for all to authenticated using (true) with check (true);
+create policy "set read" on public.site_settings for select to anon, authenticated using (true);
+create policy "set write" on public.site_settings for all to authenticated using (true) with check (true);
 
 -- Мгновенная синхронизация между устройствами
 do $$
@@ -89,6 +100,8 @@ drop policy if exists "media write" on storage.objects;
 drop policy if exists "media update" on storage.objects;
 drop policy if exists "media delete" on storage.objects;
 
+-- Читать картинки и видео может кто угодно, загружать/заменять/удалять —
+-- только авторизованный владелец панели.
 create policy "media read"
   on storage.objects for select
   to anon, authenticated
@@ -96,16 +109,16 @@ create policy "media read"
 
 create policy "media write"
   on storage.objects for insert
-  to anon, authenticated
+  to authenticated
   with check (bucket_id = 'media');
 
 create policy "media update"
   on storage.objects for update
-  to anon, authenticated
+  to authenticated
   using (bucket_id = 'media')
   with check (bucket_id = 'media');
 
 create policy "media delete"
   on storage.objects for delete
-  to anon, authenticated
+  to authenticated
   using (bucket_id = 'media');

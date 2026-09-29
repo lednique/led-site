@@ -71,7 +71,7 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
           + Embed code
         </button>
         <button type="button" onClick={() => add("form")}>
-          + Форма
+          + Заявки
         </button>
       </div>
 
@@ -91,9 +91,9 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
                         ? "Галерея Google Photos"
                         : block.type === "link"
                           ? "Кнопка-ссылка"
-                          : block.type === "embed"
+                            : block.type === "embed"
                             ? "Embed code"
-                            : "Форма"}
+                            : "Заявки"}
             </strong>
             <div className="ad-block-actions">
               <button type="button" disabled={index === 0} onClick={() => move(block.id, -1)}>
@@ -264,7 +264,14 @@ export function BlockEditor({ blocks, onChange }: BlockEditorProps) {
             </div>
           )}
 
-          {block.type === "form" && <p className="ad-hint">Контактная форма: имя, почта, сообщение.</p>}
+          {block.type === "form" && (
+            <p className="ad-hint">
+              Блок заявок: кнопка с почтой (mailto) и ссылка на Telegram. Формы ввода на сайте нет —
+              персональные данные посетителей не собираются ни в одной версии
+              (адрес и ник меняются в <code>src/contacts.ts</code>). Регион по IP влияет только на
+              блок «Соцсети» (см. <code>api/region.ts</code>).
+            </p>
+          )}
         </div>
       ))}
     </div>

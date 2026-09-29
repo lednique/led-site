@@ -5,6 +5,7 @@ import { Field, HashtagField, ImagePick, SvgPick, TextArea, TextInput } from "..
 import { DEFAULT_ACCENT, MENU_PAGES, pageLabel } from "../defaults";
 import { cardSurface, uid } from "../lib/color";
 import { alignPublicationBlocks, copyBlocks, mirrorText, syncBlocks } from "../lib/mirror";
+import { hasSupabase, supabase } from "../lib/supabase";
 import { formatBytes } from "../lib/files";
 import { BANNER_MAX_BYTES } from "../lib/upload";
 import { resolveSrc } from "../media";
@@ -27,10 +28,52 @@ export function AdminPage() {
   const sync = useSyncState();
   const [tab, setTab] = useState<Tab>("cards");
   const [authed, setAuthed] = useState(() => sessionStorage.getItem("led-admin") === "1");
+  const [email, setEmail] = useState(() => (import.meta.env.VITE_ADMIN_EMAIL as string | undefined) ?? "");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loggingIn, setLoggingIn] = useState(false);
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+
+  /**
+   * Если Supabase подключён, вход в панель = сессия Supabase Auth.
+   * Именно она даёт право писать в базу и в Storage (политики RLS настроены
+   * на роль `authenticated`), поэтому пароль больше не «прячет интерфейс»,
+   * а реально защищает содержимое сайта. Существующая сессия переживает
+   * перезагрузку страницы — supabase-js хранит её в localStorage.
+   */
+  useEffect(() => {
+    if (!hasSupabase() || !supabase) return;
+    let cancelled = false;
+
+    supabase.auth.getSession().then(({ data }) => {
+      if (cancelled || !data.session) return;
+      sessionStorage.setItem("led-admin", "1");
+      setAuthed(true);
+      setEmail(data.session.user.email ?? "");
+    });
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+      setAuthed(Boolean(session));
+      if (session) sessionStorage.setItem("led-admin", "1");
+      else sessionStorage.removeItem("led-admin");
+    });
+
+    return () => {
+      cancelled = true;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  /** Выход: гасим сессию Supabase (или просто снимаем локальный флаг). */
+  async function logout() {
+    if (hasSupabase() && supabase) await supabase.auth.signOut();
+    sessionStorage.removeItem("led-admin");
+    setAuthed(false);
+    setPassword("");
+    setError("");
+  }
 
   /** Единственная кнопка сохранения всех настроек сайта (баннер, кнопки, меню…). */
   async function onSaveSettings() {
@@ -49,7 +92,30 @@ export function AdminPage() {
   async function login(e: React.FormEvent) {
     e.preventDefault();
     setError("");
+    if (loggingIn) return;
+    setLoggingIn(true);
     try {
+      // Основной вариант — Supabase Auth: сессия даёт право на запись в базу.
+      if (hasSupabase() && supabase) {
+        const { error: authError } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (authError) {
+          setError(
+            authError.message === "Invalid login credentials"
+              ? "Неверная почта или пароль"
+              : `Не удалось войти: ${authError.message}`,
+          );
+          return;
+        }
+        sessionStorage.setItem("led-admin", "1");
+        setAuthed(true);
+        return;
+      }
+
+      // Сайт без Supabase — запасной вход (демо-режим): серверная переменная
+      // ADMIN_PASSWORD на Vercel или локальная VITE_ADMIN_PASSWORD.
       const res = await fetch("/api/admin-login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -68,7 +134,7 @@ export function AdminPage() {
           return;
         }
       }
-      setError("Неверный пароль");
+      setError(res.status === 429 ? "Слишком много попыток. Попробуйте позже." : "Неверный пароль");
     } catch {
       const local = import.meta.env.VITE_ADMIN_PASSWORD as string | undefined;
       if (local && password === local) {
@@ -77,21 +143,49 @@ export function AdminPage() {
         return;
       }
       setError("Нет связи с сервером. Для локальной работы задайте VITE_ADMIN_PASSWORD.");
+    } finally {
+      setLoggingIn(false);
     }
   }
 
   if (!authed) {
+    const withSupabase = hasSupabase();
     return (
       <div className="admin admin-gate">
         <form className="ad-editor" onSubmit={login}>
           <p className="ad-kicker">LEDNIQUE</p>
           <h1>Панель</h1>
+          {withSupabase && (
+            <Field label="Почта">
+              <TextInput
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                autoComplete="username"
+                autoFocus
+                required
+              />
+            </Field>
+          )}
           <Field label="Пароль">
-            <TextInput type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoFocus />
+            <TextInput
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              autoComplete="current-password"
+              autoFocus={!withSupabase}
+              required
+            />
           </Field>
+          {withSupabase && (
+            <p className="ad-hint">
+              Вход через Supabase Auth: пользователь создаётся в дашборде Supabase
+              (Authentication → Users → Add user). Без сессии база доступна только на чтение.
+            </p>
+          )}
           {error && <p className="ad-hint">{error}</p>}
-          <button className="ad-btn" type="submit">
-            Войти
+          <button className="ad-btn" type="submit" disabled={loggingIn}>
+            {loggingIn ? "Входим…" : "Войти"}
           </button>
         </form>
       </div>
@@ -128,6 +222,9 @@ export function AdminPage() {
           <Link className="ad-btn" to="/" target="_blank" rel="noreferrer">
             К сайту
           </Link>
+          <button type="button" className="ad-btn ad-btn--save" onClick={logout}>
+            Выйти
+          </button>
         </div>
       </header>
 

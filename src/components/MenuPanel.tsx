@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { MENU_PAGES, pageLabel } from "../defaults";
 import { useSite } from "../store";
 import { useI18n } from "../i18n";
@@ -41,15 +41,23 @@ export function MenuPanel({ open, onClose }: MenuPanelProps) {
         ))}
       </div>
       <div className="menu-foot">
-        <button
-          type="button"
-          className="lang-switch"
-          onClick={() => setLocale(locale === "en" ? "ru" : "en")}
-        >
-          {locale === "en" ? "EN" : "RU"}
-        </button>
-        <span className="lang-dot"> · </span>
-        {t("© LEDNIQUE — 2026. All Rights Reserved.", "© LEDNIQUE — 2026. Все права защищены.")}
+        <span className="menu-foot-line">
+          <button
+            type="button"
+            className="lang-switch"
+            onClick={() => setLocale(locale === "en" ? "ru" : "en")}
+          >
+            {locale === "en" ? "EN" : "RU"}
+          </button>
+          <span className="lang-dot"> · </span>
+          {t("© LEDNIQUE — 2026. All Rights Reserved.", "© LEDNIQUE — 2026. Все права защищены.")}
+        </span>
+        {/* Политика конфиденциальности — вторая строка подвала (на мобильном
+            подвал переехал в это меню). Ссылка нужна постоянно доступной:
+            ч. 2 ст. 18.1 152-ФЗ. */}
+        <Link to="/privacy" state={{ from: "/" }} onClick={onClose}>
+          {t("Privacy Policy", "Политика конфиденциальности")}
+        </Link>
       </div>
     </div>
   );
