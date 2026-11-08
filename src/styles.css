@@ -20,12 +20,10 @@
      складываются аддитивно, как свет, и в сумме выходят за пределы обычного
      белого. На HDR/EDR-экранах это настоящий светящийся кант, на обычных
      экран аккуратно срезает его в белый.
-     Отдельный токен нужен ради фолбэка: там, где plus-lighter не умеют,
-     подставляется screen (см. @supports ниже). */
-  --hdr-blend: plus-lighter;
+     Фолбэк для браузеров без plus-lighter — screen (см. @supports ниже). */
 
   /* Пилюли: кнопки соцсетей в шапке, пункты меню, «закрыть» статью.
-     Тёмные слои — обычным box-shadow, белые — слоем с --hdr-blend.
+     Тёмные слои — обычным box-shadow, белые — слоем с plus-lighter.
      Заливки нет: кнопки прозрачные, вид дают только тени. */
   --pill-shadow: 0px 6px 10px 0px rgba(0, 0, 0, 0.2), 2px 0px 2px 0px rgba(0, 0, 0, 0.3),
     -2px 0px 2px 0px rgba(0, 0, 0, 0.3), inset 0px 6px 20px -4px rgba(0, 0, 0, 0.3),
@@ -161,6 +159,12 @@ textarea,
 html,
 body,
 #root {
+  /* Включаем отрисовку в расширенном динамическом диапазоне. По умолчанию
+     браузер держит страницу в SDR (`standard`) и срезает аддитивные белые
+     слои (mix-blend-mode: plus-lighter) к обычному белому — видимого «света»
+     не получается. `no-limit` разрешает отдать на HDR/EDR-экран значения
+     ярче 1.0, и кант у кнопок и карточек действительно светится. */
+  dynamic-range-limit: no-limit;
   height: 100%;
   height: 100dvh;
   min-height: 100%;
@@ -545,7 +549,7 @@ img {
     background 150ms var(--ease-out-back);
 }
 
-/* Белые слои — HDR: отдельным слоем, аддитивно (см. --hdr-blend). */
+/* Белые слои — HDR: отдельным слоем, аддитивно (plus-lighter). */
 .nav-btn-pill::after {
   content: "";
   position: absolute;
@@ -553,12 +557,18 @@ img {
   border-radius: inherit;
   pointer-events: none;
   box-shadow: var(--pill-hdr);
-  mix-blend-mode: var(--hdr-blend);
+  mix-blend-mode: plus-lighter;
 }
 
+/* Там, где plus-lighter не умеют, складываем слои через screen. */
 @supports not (mix-blend-mode: plus-lighter) {
-  :root {
-    --hdr-blend: screen;
+  .nav-btn-pill::after,
+  .menu-item::after,
+  .card::after,
+  .social-card::after,
+  .social-dot::after,
+  .social-well::after {
+    mix-blend-mode: screen;
   }
 }
 
@@ -713,7 +723,7 @@ img {
 }
 
 /* Белый кант карточки — HDR-слой поверх картинки и тёмной кромки
-   (см. --hdr-blend). Живёт на самой карточке, а не внутри .card-chrome:
+   (plus-lighter). Живёт на самой карточке, а не внутри .card-chrome:
    .card-chrome — отдельный контекст наложения (z-index: 8), внутри него
    аддитивно складывать не с чем, и белый кант выходил ровной серой каймой.
    Отсюда z-index: 9 — слой должен лежать над .card-chrome (8), ховером (4)
@@ -726,7 +736,7 @@ img {
   border-radius: inherit;
   pointer-events: none;
   box-shadow: var(--card-hdr);
-  mix-blend-mode: var(--hdr-blend);
+  mix-blend-mode: plus-lighter;
   z-index: 9;
 }
 
@@ -917,7 +927,7 @@ img {
   border-radius: 50%;
   pointer-events: none;
   box-shadow: inset 0 2px 1px rgba(255, 255, 255, 0.5), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
-  mix-blend-mode: var(--hdr-blend);
+  mix-blend-mode: plus-lighter;
 }
 
 .social-well::after {
@@ -927,7 +937,7 @@ img {
   border-radius: inherit;
   pointer-events: none;
   box-shadow: inset 0px 1px 2px rgba(255, 255, 255, 0.6);
-  mix-blend-mode: var(--hdr-blend);
+  mix-blend-mode: plus-lighter;
 }
 
 @media (hover: hover) {
@@ -1991,7 +2001,7 @@ a.tg-cta {
   border-radius: inherit;
   pointer-events: none;
   box-shadow: var(--pill-hdr);
-  mix-blend-mode: var(--hdr-blend);
+  mix-blend-mode: plus-lighter;
 }
 
 @media (hover: hover) {
