@@ -97,19 +97,19 @@ export function MenuLogoMark({ className }: { className?: string }) {
           <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
           <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.3 0" />
           <feComposite in2="effect4_innerShadow" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="effect5_innerShadow" />
-          {/* внутренняя тень inset 0 0.5px 0.5px rgba(255,255,255,0.6) */}
+          {/* внутренняя тень inset 0 0.5px 0.5px rgba(255,255,255,0.5) */}
           <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
           <feOffset dy="0.5" />
           <feGaussianBlur stdDeviation="0.5" />
           <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
-          <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0" />
+          <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.5 0" />
           <feComposite in2="effect5_innerShadow" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="effect6_innerShadow" />
-          {/* внутренняя тень inset 0 1px 0.5px rgba(255,255,255,0.45) */}
+          {/* внутренняя тень inset 0 1px 0.5px rgba(255,255,255,0.5) */}
           <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
           <feOffset dy="1" />
           <feGaussianBlur stdDeviation="0.5" />
           <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
-          <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.45 0" />
+          <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.5 0" />
           <feComposite in2="effect6_innerShadow" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="effect7_innerShadow" />
         </filter>
       </defs>

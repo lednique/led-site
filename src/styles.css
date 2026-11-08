@@ -30,7 +30,7 @@
     inset 0px 4px 20px 0px rgba(0, 0, 0, 0.3);
   --pill-hdr: inset 0px -8px 1px -5px rgba(255, 255, 255, 0.3),
     inset 0px 8px 6px -5px rgba(255, 255, 255, 0.6),
-    inset 0px 8px 0.5px -5px rgba(255, 255, 255, 0.35);
+    inset 0px 8px 0.5px -5px rgba(255, 255, 255, 0.5);
 
   /* Карточки ленты: внешние тени и тёмная внутренняя кромка — обычные,
      верхний белый кант — HDR-слоем. */
@@ -38,8 +38,8 @@
     -1px 0px 0px 0px rgba(0, 0, 0, 0.3);
   --card-inset: inset 0px 2px 3px 0px rgba(0, 0, 0, 0.3);
   --card-hdr: inset 0px -1px 1px 0px rgba(255, 255, 255, 0.3),
-    inset 0px 0.5px 0.5px 0px rgba(255, 255, 255, 0.6),
-    inset 0px 1px 0.5px 0px rgba(255, 255, 255, 0.45);
+    inset 0px 0.5px 0.5px 0px rgba(255, 255, 255, 0.5),
+    inset 0px 1px 0.5px 0px rgba(255, 255, 255, 0.5);
 
   /* Тень текста (Figma: X 0 · Y 0 · Blur 10 · 50 %). Держит контраст подписи
      на светлых участках картинок. У статей тень выключена. */
