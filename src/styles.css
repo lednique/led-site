@@ -11,9 +11,55 @@
   --status-bar: #000;
   --ease-out-back: cubic-bezier(0.01, 1.43, 0.46, 1.85);
   --link-ease: cubic-bezier(0.38, 0, 0, 1);
-  --card-inset: 0px 3px 2px rgba(255, 255, 255, 0.5) inset,
-    0px -3px 2px rgba(255, 255, 255, 0.3) inset;
   --font: "Montserrat", system-ui, sans-serif;
+
+  /* ——— HDR ———
+     Белые слои теней нельзя рисовать общим box-shadow: на тёмной пилюле
+     обычный белый инсет превращается в ровную серую кайму. Поэтому «свет»
+     живёт отдельным слоем (::after) с mix-blend-mode: plus-lighter — слои
+     складываются аддитивно, как свет, и в сумме выходят за пределы обычного
+     белого. На HDR/EDR-экранах это настоящий светящийся кант, на обычных
+     экран аккуратно срезает его в белый.
+     Отдельный токен нужен ради фолбэка: там, где plus-lighter не умеют,
+     подставляется screen (см. @supports ниже). */
+  --hdr-blend: plus-lighter;
+
+  /* Пилюли: кнопки соцсетей в шапке, пункты меню, «закрыть» статью.
+     Тёмные слои — обычным box-shadow, белые — слоем с --hdr-blend. */
+  --pill-fill: #121212;
+  --pill-gradient: linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.2) 0%,
+    rgba(0, 0, 0, 0.05) 32%,
+    rgba(255, 255, 255, 0.1) 100%
+  );
+  --pill-shadow: 0px 6px 10px 0px rgba(0, 0, 0, 0.2), 2px 0px 2px 0px rgba(0, 0, 0, 0.3),
+    -2px 0px 2px 0px rgba(0, 0, 0, 0.3), inset 0px 6px 20px -4px rgba(0, 0, 0, 0.3),
+    inset 0px 4px 20px 0px rgba(0, 0, 0, 0.3);
+  --pill-hdr: inset 0px -8px 1px -5px rgba(255, 255, 255, 0.3),
+    inset 0px 8px 6px -5px rgba(255, 255, 255, 0.6),
+    inset 0px 8px 0.5px -5px rgba(255, 255, 255, 0.35);
+
+  /* Карточки ленты: внешние тени и тёмная внутренняя кромка — обычные,
+     верхний белый кант — HDR-слоем. */
+  --card-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25), 1px 0px 1px 0px rgba(0, 0, 0, 0.3),
+    -1px 0px 0px 0px rgba(0, 0, 0, 0.3);
+  --card-inset: inset 0px 2px 3px 0px rgba(0, 0, 0, 0.3);
+  --card-hdr: inset 0px -1px 1px 0px rgba(255, 255, 255, 0.3),
+    inset 0px 0.5px 0.5px 0px rgba(255, 255, 255, 0.6),
+    inset 0px 1px 0.5px 0px rgba(255, 255, 255, 0.45);
+
+  /* Тень текста (Figma: X 0 · Y 0 · Blur 10 · 50 %). Держит контраст подписи
+     на светлых участках картинок. У статей тень выключена. */
+  --text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+
+  /* Подложка шапки: чёрный у верхней кромки → прозрачный низ. */
+  --chrome-fade: linear-gradient(
+    180deg,
+    #000 0%,
+    rgba(0, 0, 0, 0.86) 45%,
+    rgba(0, 0, 0, 0) 100%
+  );
   /* Верхняя линия «хрома» сайта на компьютере: от неё отсчитываются кнопки
      меню (.menu-item) справа и кнопка «закрыть» (.nav-btn) слева. Высоты у
      них разные, поэтому обе величины держим рядом — по ним считается
@@ -21,6 +67,10 @@
   --chrome-top: 25px;
   --menu-item-h: 34px;
   --nav-btn-h: 40px;
+  /* Высота выезжающей мобильной панели. Кнопок меню четыре, на узких
+     экранах они переносятся в две строки — прежних 120px перестало
+     хватать (строки 2×34 + отступы + подвал). */
+  --menu-panel-h: 156px;
 }
 
 * {
@@ -126,6 +176,19 @@ body,
   color: #fff;
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
+  /* Тень у всего текста сайта — она держит контраст подписи на светлых
+     участках картинок. Наследуется всеми потомками, поэтому выключается
+     точечно: у статей (длинный набор с ореолом «грязнит» строку) и в
+     панели управления (там плотная сетка интерфейса). */
+  text-shadow: var(--text-shadow);
+}
+
+/* Статьи и панель управления — единственные зоны без тени текста. */
+.admin,
+.admin *,
+.stage-reader,
+.stage-reader * {
+  text-shadow: none;
 }
 
 ::selection {
@@ -399,12 +462,32 @@ img {
   height: 40px;
 }
 
-.sidebar.is-scrolled .topbar {
-  background: #000;
+/* Подложка под кнопками и логотипом: чёрный у верхней кромки → прозрачный
+   низ. Высота больше самой шапки, чтобы карточки «проявлялись» плавно.
+   Появляется при прокрутке (ниже) и всегда включена на мобильной, где шапка
+   sticky. */
+.topbar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 128px;
+  background: var(--chrome-fade);
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.sidebar.is-scrolled .topbar::before {
+  opacity: 1;
 }
 
 .logo {
-  width: 120px;
+  /* Монограмма 128×73 в холсте 158×103. Высота знака прежняя — 32px,
+     поэтому ширина уменьшилась до ~56px. */
+  width: 56px;
   height: 32px;
   margin-left: auto;
   transform: translateX(-20px);
@@ -416,11 +499,16 @@ img {
 }
 
 .logo svg {
+  /* Холст масштабируется целиком (158×103 → 69.26×45.15), чтобы фильтр с
+     тенями не обрезался. Знак внутри холста стоит не по центру по вертикали
+     (центр формы — 45.5 из 103), поэтому холст поднят на 2.6px: буквы
+     остаются на оптической середине кнопки. */
   position: absolute;
-  left: 0;
-  top: -6px;
-  width: 140px;
-  height: 52px;
+  left: 50%;
+  top: calc(50% + 2.6px);
+  width: 69.26px;
+  height: 45.15px;
+  transform: translate(-50%, -50%);
 }
 
 .nav-btn {
@@ -446,53 +534,51 @@ img {
   opacity: 0.8;
   position: relative;
   overflow: hidden;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%);
-  box-shadow:
-    0px 3px 6px rgba(0, 0, 0, 0.2),
-    1px 0px 2px rgba(0, 0, 0, 0.3),
-    -1px 0px 2px rgba(0, 0, 0, 0.3);
+  /* Тёмная заливка + градиент поверх неё (bg-blend-overlay): на чёрном фоне
+     получается почти ровный #0f0f0f, а на картинках пилюля остаётся тёмной. */
+  background-color: var(--pill-fill);
+  background-image: var(--pill-gradient);
+  background-blend-mode: overlay;
+  box-shadow: var(--pill-shadow);
   transition:
     width 150ms var(--ease-out-back),
     height 150ms var(--ease-out-back),
-    background 150ms var(--ease-out-back);
+    background-color 150ms var(--ease-out-back);
 }
 
+/* Белые слои — HDR: отдельным слоем, аддитивно (см. --hdr-blend). */
 .nav-btn-pill::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  box-shadow:
-    0px -3px 1px rgba(255, 255, 255, 0.15) inset,
-    0px 2px 2px #fff inset;
-  mix-blend-mode: plus-lighter;
+  box-shadow: var(--pill-hdr);
+  mix-blend-mode: var(--hdr-blend);
 }
 
 @supports not (mix-blend-mode: plus-lighter) {
-  .nav-btn-pill::after {
-    mix-blend-mode: screen;
+  :root {
+    --hdr-blend: screen;
   }
 }
 
 .nav-btn:focus-visible .nav-btn-pill {
   width: 52px;
   height: 36px;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  background-color: #2b2b2b;
 }
 
 @media (hover: hover) {
   .nav-btn:hover .nav-btn-pill {
     width: 52px;
     height: 36px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+    background-color: #2b2b2b;
   }
 }
 
 .nav-btn.is-active .nav-btn-pill {
-  background:
-    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%),
-    rgba(0, 0, 0, 0.2);
+  background-color: #060606;
 }
 
 .nav-btn-icon {
@@ -576,6 +662,9 @@ img {
   flex-shrink: 0;
   text-align: left;
   color: #fff;
+  /* Внешние тени карточки. Тёмная внутренняя кромка и белый HDR-кант живут
+     на .card-chrome — иначе они уходят под картинку. */
+  box-shadow: var(--card-shadow);
 }
 
 .card {
@@ -617,6 +706,17 @@ img {
   pointer-events: none;
   z-index: 8;
   box-shadow: var(--card-inset);
+}
+
+/* Белый кант карточки — HDR-слой поверх картинки (см. --hdr-blend). */
+.card-chrome::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: var(--card-hdr);
+  mix-blend-mode: var(--hdr-blend);
 }
 
 .card-title {
@@ -745,7 +845,7 @@ img {
   .card--link:hover .card-link-btn .nav-btn-pill {
     width: 52px;
     height: 36px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+    background-color: #2b2b2b;
   }
 }
 
@@ -758,7 +858,7 @@ img {
 }
 
 .social-card .card-title {
-  color: #000;
+  color: #fff;
 }
 
 .social-well {
@@ -766,7 +866,8 @@ img {
   min-height: 72px;
   padding: 8px 10px;
   background: #363636;
-  box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.25) inset, 0px 1px 2px rgba(255, 255, 255, 0.6) inset;
+  position: relative;
+  box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.25) inset;
   border-radius: 36px;
   outline: 2px solid #242424;
   outline-offset: -2px;
@@ -784,8 +885,29 @@ img {
   flex: 0 0 44px;
   border-radius: 50%;
   overflow: hidden;
-  box-shadow: 0 2px 1px rgba(255, 255, 255, 0.5) inset, 0 -1px 1px rgba(255, 255, 255, 0.3) inset;
+  position: relative;
   transition: transform 150ms var(--ease-out-back);
+}
+
+/* Белые канты иконок и «колодца» — HDR-слоями, как у пилюль. */
+.social-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: inset 0 2px 1px rgba(255, 255, 255, 0.5), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
+  mix-blend-mode: var(--hdr-blend);
+}
+
+.social-well::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0px 1px 2px rgba(255, 255, 255, 0.6);
+  mix-blend-mode: var(--hdr-blend);
 }
 
 @media (hover: hover) {
@@ -839,20 +961,6 @@ img {
   transition: opacity 280ms ease;
 }
 
-.sidebar-topfade::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  /* Поднимаем градиент к блоку с логотипом (в нижнюю подложку шапки, не
-     перекрывая ряд навигации) и убираем сплошную чёрную полосу: плавный
-     переход от непрозрачного чёрного под шапкой к прозрачному. */
-  top: -16px;
-  height: 104px;
-  background: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0) 100%);
-  pointer-events: none;
-}
-
 .sidebar-topfade.is-on {
   opacity: 1;
 }
@@ -860,7 +968,8 @@ img {
 .scroll-anchor {
   position: absolute;
   left: 50%;
-  top: 16px;
+  /* 16px − 10px: кнопка поднята выше, подложки за ней больше нет. */
+  top: 6px;
   transform: translateX(-50%);
   pointer-events: auto;
   background: none;
@@ -1846,38 +1955,37 @@ a.tg-cta {
   font-weight: 600;
   letter-spacing: 0.04em;
   white-space: nowrap;
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%);
-  box-shadow:
-    0px 3px 6px rgba(0, 0, 0, 0.2),
-    1px 0px 2px rgba(0, 0, 0, 0.3),
-    -1px 0px 2px rgba(0, 0, 0, 0.3);
+  /* Те же заливка и тени, что у пилюль соцсетей в шапке. */
+  background-color: var(--pill-fill);
+  background-image: var(--pill-gradient);
+  background-blend-mode: overlay;
+  box-shadow: var(--pill-shadow);
   transition:
     transform 150ms var(--ease-out-back),
-    background 150ms var(--ease-out-back);
+    background-color 150ms var(--ease-out-back);
 }
 
+/* Белые слои — HDR (аддитивно), как у .nav-btn-pill::after. */
 .menu-item::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  box-shadow:
-    0px -3px 1px rgba(255, 255, 255, 0.15) inset,
-    0px 2px 2px #fff inset;
-  mix-blend-mode: plus-lighter;
+  box-shadow: var(--pill-hdr);
+  mix-blend-mode: var(--hdr-blend);
 }
 
 @media (hover: hover) {
   .menu-item:hover {
     transform: scale(1.03);
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+    background-color: #2b2b2b;
   }
 }
 
 .menu-item:focus-visible {
   transform: scale(1.03);
-  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+  background-color: #2b2b2b;
 }
 
 /* ——— сенсорные экраны: эффект «hover» срабатывает только в момент нажатия ——— */
@@ -1885,7 +1993,7 @@ a.tg-cta {
   .nav-btn:active .nav-btn-pill {
     width: 52px;
     height: 36px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+    background-color: #2b2b2b;
   }
 
   .card:active .card-hover {
@@ -1900,7 +2008,7 @@ a.tg-cta {
   .card--link:active .card-link-btn .nav-btn-pill {
     width: 52px;
     height: 36px;
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+    background-color: #2b2b2b;
   }
 
   .social-dot:active {
@@ -1928,7 +2036,7 @@ a.tg-cta {
 
   .menu-item:active {
     transform: scale(1.03);
-    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
+    background-color: #2b2b2b;
   }
 
   .menu-toggle:active {
@@ -2112,7 +2220,7 @@ a.tg-cta {
   }
 
   .site.menu-open {
-    margin-top: 120px;
+    margin-top: var(--menu-panel-h);
   }
 
   .menu-panel {
@@ -2123,7 +2231,7 @@ a.tg-cta {
     top: 0;
     left: 0;
     right: 0;
-    height: 120px;
+    height: var(--menu-panel-h);
     z-index: 50;
     background: #000;
     padding: 20px 15px;
@@ -2204,7 +2312,9 @@ a.tg-cta {
     top: 0;
     z-index: 40;
     width: 100%;
-    background: #000;
+    /* Прозрачный: фон даёт градиент .topbar::before, иначе он не был бы
+       виден под сплошной заливкой. */
+    background: transparent;
     isolation: isolate;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
@@ -2236,11 +2346,13 @@ a.tg-cta {
     top: auto;
     z-index: 5;
     width: 100%;
-    background: #000;
+    /* Подложка — градиент из .topbar::before, она на мобильной включена
+       всегда: чёрная полоса во всю высоту шапки больше не нужна. */
+    background: transparent;
   }
 
-  .sidebar.is-scrolled .topbar {
-    background: #000;
+  .topbar::before {
+    opacity: 1;
   }
 
   .board-wrap {
@@ -2349,12 +2461,12 @@ a.tg-cta {
   }
 
   .menu-panel {
-    height: calc(120px + env(safe-area-inset-top, 0px));
+    height: calc(var(--menu-panel-h) + env(safe-area-inset-top, 0px));
     padding-top: calc(20px + env(safe-area-inset-top, 0px));
   }
 
   .site.menu-open {
-    margin-top: calc(120px + env(safe-area-inset-top, 0px));
+    margin-top: calc(var(--menu-panel-h) + env(safe-area-inset-top, 0px));
   }
 }
 

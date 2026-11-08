@@ -31,10 +31,135 @@ export function LogoMark({ className }: { className?: string }) {
   );
 }
 
+const MENU_LOGO_PATH =
+  "M85.2982 9L85.4794 17.2853L85.4752 17.2857C82.4754 17.4029 79.4837 17.6172 76.497 17.9255C62.3853 19.3819 47.5143 22.7176 35.4937 30.6455C29.8456 34.3705 18.165 45.3324 25.4277 52.3891C29.9769 56.8087 37.5775 56.73 43.5621 56.5535C43.5068 45.0827 50.5504 36.7133 59.0754 32.9031C68.3018 28.7796 80.4208 29.6149 87.1629 38.8479C90.3547 43.219 90.8396 49.0762 90.3626 54.3171C90.22 55.8829 89.9209 57.4244 89.6581 58.9731C86.9639 59.4713 84.269 59.9609 81.567 60.4151C72.3026 61.9724 62.9885 63.3318 53.6314 64.1971C55.7872 68.1016 59.9 70.7875 65.7814 72.3241C73.9486 74.4578 84.7646 74.0683 95.6453 71.5959C106.497 69.1302 116.928 64.7016 124.317 59.2213C131.86 53.6264 135.279 47.72 134.642 42.2883C133.543 32.9272 123.217 27.2961 115.476 23.9457C110.931 21.9785 106.203 20.4328 101.406 19.2045L101.071 58.576C102.467 58.2016 104.146 57.6951 106.066 57.0141L108.831 64.8263C105.383 66.0493 102.577 66.7867 100.601 67.2218C97.9965 67.7952 95.3569 68.0235 92.7096 68.3152L93.2138 9.07731C101.984 10.6617 110.55 12.7838 118.762 16.3381C129.444 20.9616 141.387 28.7432 142.864 41.3208C144.026 51.2224 137.615 59.6728 129.245 65.8808C120.721 72.2032 109.157 77.0241 97.477 79.678C85.8271 82.3251 73.5768 82.9255 63.6909 80.3427C55.0827 78.0937 47.7269 73.2102 44.8655 64.7994C36.2248 65.1367 26.2046 64.6927 19.6621 58.3362C8.07365 47.0764 20.4779 30.6244 30.939 23.7249C44.0921 15.05 60.186 11.2768 75.6481 9.68095C78.8546 9.35001 82.0749 9.09213 85.2982 9ZM80.4806 43.7386C76.7508 38.6309 69.3394 37.3924 62.4502 40.4713C56.6229 43.0758 52.0162 48.4872 51.848 56.0359C62.0242 55.1427 72.1537 53.6349 82.2161 51.897C82.2912 49.1796 82.1354 46.0049 80.4806 43.7386Z";
+
+/**
+ * Монограмма LEDNIQUE для верхнего меню (присланный SVG, viewBox 158×103).
+ *
+ * Заливка — сплошной белый: сама форма не светится. HDR здесь только у
+ * белых теней внутри фильтра (последние три слоя с `plus-lighter`): они
+ * складываются аддитивно поверх белого и дают кант ярче 1.0 — на HDR/EDR
+ * экранах это настоящее свечение, на обычных аккуратно срезается в белый.
+ * Тёмные слои (внешняя тень и два внутренних затемнения) остаются обычными:
+ * они и рисуют объём по верхней кромке.
+ */
+export function MenuLogoMark({ className }: { className?: string }) {
+  return (
+    <svg className={className} width="158" height="103" viewBox="0 0 158 103" fill="none" aria-hidden>
+      <g filter="url(#logo-menu-filter)">
+        <path d={MENU_LOGO_PATH} fill="white" />
+      </g>
+      <defs>
+        <filter
+          id="logo-menu-filter"
+          x="0"
+          y="0"
+          width="158"
+          height="103"
+          filterUnits="userSpaceOnUse"
+          colorInterpolationFilters="sRGB"
+        >
+          <feFlood floodOpacity="0" result="BackgroundImageFix" />
+          <feColorMatrix
+            in="SourceAlpha"
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+            result="hardAlpha"
+          />
+          <feOffset dy="6" />
+          <feGaussianBlur stdDeviation="7.5" />
+          <feComposite in2="hardAlpha" operator="out" />
+          <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0" />
+          <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
+          <feColorMatrix
+            in="SourceAlpha"
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+            result="hardAlpha"
+          />
+          <feOffset dx="1" />
+          <feGaussianBlur stdDeviation="0.5" />
+          <feComposite in2="hardAlpha" operator="out" />
+          <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0" />
+          <feBlend mode="normal" in2="effect1_dropShadow" result="effect2_dropShadow" />
+          <feColorMatrix
+            in="SourceAlpha"
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+            result="hardAlpha"
+          />
+          <feOffset dx="-1" />
+          <feComposite in2="hardAlpha" operator="out" />
+          <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0" />
+          <feBlend mode="normal" in2="effect2_dropShadow" result="effect3_dropShadow" />
+          <feBlend mode="normal" in="SourceGraphic" in2="effect3_dropShadow" result="shape" />
+          <feColorMatrix
+            in="SourceAlpha"
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+            result="hardAlpha"
+          />
+          <feOffset dy="1" />
+          <feGaussianBlur stdDeviation="3" />
+          <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+          <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0" />
+          <feBlend mode="normal" in2="shape" result="effect4_innerShadow" />
+          <feColorMatrix
+            in="SourceAlpha"
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+            result="hardAlpha"
+          />
+          <feOffset dy="2" />
+          <feGaussianBlur stdDeviation="1.5" />
+          <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+          <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0" />
+          <feBlend mode="plus-darker" in2="effect4_innerShadow" result="effect5_innerShadow" />
+          {/* ——— HDR: белые тени складываются аддитивно ——— */}
+          <feColorMatrix
+            in="SourceAlpha"
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+            result="hardAlpha"
+          />
+          <feOffset dy="-1" />
+          <feGaussianBlur stdDeviation="0.5" />
+          <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+          <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.3 0" />
+          <feBlend mode="plus-lighter" in2="effect5_innerShadow" result="effect6_innerShadow" />
+          <feColorMatrix
+            in="SourceAlpha"
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+            result="hardAlpha"
+          />
+          <feOffset dy="0.5" />
+          <feGaussianBlur stdDeviation="0.25" />
+          <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+          <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0" />
+          <feBlend mode="plus-lighter" in2="effect6_innerShadow" result="effect7_innerShadow" />
+          <feColorMatrix
+            in="SourceAlpha"
+            type="matrix"
+            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
+            result="hardAlpha"
+          />
+          <feOffset dy="1" />
+          <feGaussianBlur stdDeviation="0.25" />
+          <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
+          <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.25 0" />
+          <feBlend mode="plus-lighter" in2="effect7_innerShadow" result="effect8_innerShadow" />
+        </filter>
+      </defs>
+    </svg>
+  );
+}
+
 export function Logo({ onClick }: LogoProps) {
   return (
     <button className="logo" onClick={onClick} aria-label="LEDNIQUE home">
-      <LogoMark />
+      <MenuLogoMark />
     </button>
   );
 }
