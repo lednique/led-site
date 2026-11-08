@@ -26,9 +26,6 @@ export const MENU_PAGES: { key: MenuPageKey; label: Localized }[] = [
   { key: "about", label: L("About me", "Обо мне") },
   { key: "commission", label: L("Commission Request", "Заказать работу") },
   { key: "contacts", label: L("Contacts", "Контакты") },
-  // Четвёртая кнопка — самая правая в строке меню. Подпись и содержимое
-  // правятся в панели управления (вкладка «Меню»).
-  { key: "portfolio", label: L("Portfolio", "Портфолио") },
 ];
 
 /** Заводской шаблон письма для кнопки «Заказать работу». */
@@ -79,7 +76,7 @@ function isBlockList(value: unknown): value is ArticleBlock[] {
 
 /**
  * Склеивает страницы меню с заводскими: пустой `{}` из базы не должен
- * затирать кнопки меню, иначе вкладка «Меню» в панели падает.
+ * затирать три кнопки, иначе вкладка «Меню» в панели падает.
  */
 export function mergePages(raw: unknown, fallback: SitePages = defaultPages()): SitePages {
   const src = raw && typeof raw === "object" ? (raw as Partial<Record<MenuPageKey, Partial<PageContent>>>) : {};

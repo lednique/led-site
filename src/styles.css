@@ -67,10 +67,6 @@
   --chrome-top: 25px;
   --menu-item-h: 34px;
   --nav-btn-h: 40px;
-  /* Высота выезжающей мобильной панели. Кнопок меню четыре, на узких
-     экранах они переносятся в две строки — прежних 120px перестало
-     хватать (строки 2×34 + отступы + подвал). */
-  --menu-panel-h: 156px;
 }
 
 * {
@@ -2220,7 +2216,7 @@ a.tg-cta {
   }
 
   .site.menu-open {
-    margin-top: var(--menu-panel-h);
+    margin-top: 120px;
   }
 
   .menu-panel {
@@ -2231,7 +2227,7 @@ a.tg-cta {
     top: 0;
     left: 0;
     right: 0;
-    height: var(--menu-panel-h);
+    height: 120px;
     z-index: 50;
     background: #000;
     padding: 20px 15px;
@@ -2461,12 +2457,12 @@ a.tg-cta {
   }
 
   .menu-panel {
-    height: calc(var(--menu-panel-h) + env(safe-area-inset-top, 0px));
+    height: calc(120px + env(safe-area-inset-top, 0px));
     padding-top: calc(20px + env(safe-area-inset-top, 0px));
   }
 
   .site.menu-open {
-    margin-top: calc(var(--menu-panel-h) + env(safe-area-inset-top, 0px));
+    margin-top: calc(120px + env(safe-area-inset-top, 0px));
   }
 }
 

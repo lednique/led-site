@@ -68,8 +68,8 @@ export type SplashBackground = {
   image: string;
 };
 
-/** Ключи страниц верхнего меню (шапка сайта и мобильное меню). */
-export type MenuPageKey = "about" | "commission" | "contacts" | "portfolio";
+/** Ключи страниц верхнего меню (мобильная шапка). */
+export type MenuPageKey = "about" | "commission" | "contacts";
 
 /** Редактируемое содержимое страницы меню — те же блоки, что и в карточках, плюс подпись кнопки. */
 export type PageContent = {
