@@ -37,18 +37,18 @@ const MENU_LOGO_PATH =
 /**
  * Монограмма LEDNIQUE для верхнего меню (присланный SVG, viewBox 158×103).
  *
- * Заливка — белый 50 % (fill-opacity .5): знак полупрозрачный, как в
- * исходном макете. HDR здесь только у белых теней внутри фильтра (последние
- * три слоя с `plus-lighter`): они складываются аддитивно поверх знака и дают
- * кант ярче 1.0 — на HDR/EDR экранах это настоящее свечение, на обычных
- * аккуратно срезается в белый. Тёмные слои (внешняя тень и два внутренних
- * затемнения) остаются обычными: они и рисуют объём по верхней кромке.
+ * Заливка — сплошной белый (100 %). Оформление — как у карточек, теми же
+ * слоями и с теми же числами: внешняя тень `0 4px 4px rgba(0,0,0,.25)` плюс
+ * боковые `±1px`, тёмная внутренняя кромка `inset 0 2px 3px rgba(0,0,0,.3)`
+ * и белый кант `inset 0 -1px 1px / .5px .5px / 1px .5px` из `--card-hdr`.
+ * Белые слои складываются аддитивно (feComposite с k2 = k3 = 1 — аналог
+ * plus-lighter внутри SVG-фильтра), тёмные рисуются обычным блендом.
  */
 export function MenuLogoMark({ className }: { className?: string }) {
   return (
     <svg className={className} width="158" height="103" viewBox="0 0 158 103" fill="none" aria-hidden>
       <g filter="url(#logo-menu-filter)">
-        <path d={MENU_LOGO_PATH} fill="white" fillOpacity={0.5} />
+        <path d={MENU_LOGO_PATH} fill="white" />
       </g>
       <defs>
         <filter
@@ -61,95 +61,56 @@ export function MenuLogoMark({ className }: { className?: string }) {
           colorInterpolationFilters="sRGB"
         >
           <feFlood floodOpacity="0" result="BackgroundImageFix" />
-          <feColorMatrix
-            in="SourceAlpha"
-            type="matrix"
-            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-            result="hardAlpha"
-          />
-          <feOffset dy="6" />
-          <feGaussianBlur stdDeviation="7.5" />
+          {/* ——— те же слои, что у карточек: --card-shadow, --card-inset, --card-hdr ——— */}
+          {/* внешняя тень 0 4 4 rgba(0,0,0,0.25) */}
+          <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+          <feOffset dx="0" dy="4" />
+          <feGaussianBlur stdDeviation="4" />
           <feComposite in2="hardAlpha" operator="out" />
-          <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.2 0" />
+          <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.25 0" />
           <feBlend mode="normal" in2="BackgroundImageFix" result="effect1_dropShadow" />
-          <feColorMatrix
-            in="SourceAlpha"
-            type="matrix"
-            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-            result="hardAlpha"
-          />
-          <feOffset dx="1" />
-          <feGaussianBlur stdDeviation="0.5" />
+          {/* внешняя тень 1 0 1 rgba(0,0,0,0.3) */}
+          <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+          <feOffset dx="1" dy="0" />
+          <feGaussianBlur stdDeviation="1" />
           <feComposite in2="hardAlpha" operator="out" />
           <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0" />
           <feBlend mode="normal" in2="effect1_dropShadow" result="effect2_dropShadow" />
-          <feColorMatrix
-            in="SourceAlpha"
-            type="matrix"
-            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-            result="hardAlpha"
-          />
-          <feOffset dx="-1" />
+          {/* внешняя тень -1 0 0 rgba(0,0,0,0.3) */}
+          <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+          <feOffset dx="-1" dy="0" />
           <feComposite in2="hardAlpha" operator="out" />
           <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0" />
           <feBlend mode="normal" in2="effect2_dropShadow" result="effect3_dropShadow" />
           <feBlend mode="normal" in="SourceGraphic" in2="effect3_dropShadow" result="shape" />
-          <feColorMatrix
-            in="SourceAlpha"
-            type="matrix"
-            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-            result="hardAlpha"
-          />
-          <feOffset dy="1" />
+          {/* внутренняя тень inset 0 2px 3px rgba(0,0,0,0.3) */}
+          <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
+          <feOffset dy="2" />
           <feGaussianBlur stdDeviation="3" />
           <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
           <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0" />
           <feBlend mode="normal" in2="shape" result="effect4_innerShadow" />
-          <feColorMatrix
-            in="SourceAlpha"
-            type="matrix"
-            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-            result="hardAlpha"
-          />
-          <feOffset dy="2" />
-          <feGaussianBlur stdDeviation="1.5" />
-          <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
-          <feColorMatrix type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.3 0" />
-          <feBlend mode="plus-darker" in2="effect4_innerShadow" result="effect5_innerShadow" />
-          {/* ——— HDR: белые тени складываются аддитивно ——— */}
-          <feColorMatrix
-            in="SourceAlpha"
-            type="matrix"
-            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-            result="hardAlpha"
-          />
+          {/* внутренняя тень inset 0 -1px 1px rgba(255,255,255,0.3) */}
+          <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
           <feOffset dy="-1" />
-          <feGaussianBlur stdDeviation="0.5" />
+          <feGaussianBlur stdDeviation="1" />
           <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
           <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.3 0" />
-          <feBlend mode="plus-lighter" in2="effect5_innerShadow" result="effect6_innerShadow" />
-          <feColorMatrix
-            in="SourceAlpha"
-            type="matrix"
-            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-            result="hardAlpha"
-          />
+          <feComposite in2="effect4_innerShadow" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="effect5_innerShadow" />
+          {/* внутренняя тень inset 0 0.5px 0.5px rgba(255,255,255,0.6) */}
+          <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
           <feOffset dy="0.5" />
-          <feGaussianBlur stdDeviation="0.25" />
+          <feGaussianBlur stdDeviation="0.5" />
           <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
           <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.6 0" />
-          <feBlend mode="plus-lighter" in2="effect6_innerShadow" result="effect7_innerShadow" />
-          <feColorMatrix
-            in="SourceAlpha"
-            type="matrix"
-            values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0"
-            result="hardAlpha"
-          />
+          <feComposite in2="effect5_innerShadow" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="effect6_innerShadow" />
+          {/* внутренняя тень inset 0 1px 0.5px rgba(255,255,255,0.45) */}
+          <feColorMatrix in="SourceAlpha" type="matrix" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0" result="hardAlpha" />
           <feOffset dy="1" />
-          <feGaussianBlur stdDeviation="0.25" />
+          <feGaussianBlur stdDeviation="0.5" />
           <feComposite in2="hardAlpha" operator="arithmetic" k2="-1" k3="1" />
-          <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.25 0" />
-          <feBlend mode="plus-lighter" in2="effect7_innerShadow" result="effect8_innerShadow" />
+          <feColorMatrix type="matrix" values="0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.45 0" />
+          <feComposite in2="effect6_innerShadow" operator="arithmetic" k1="0" k2="1" k3="1" k4="0" result="effect7_innerShadow" />
         </filter>
       </defs>
     </svg>
