@@ -25,14 +25,8 @@
   --hdr-blend: plus-lighter;
 
   /* Пилюли: кнопки соцсетей в шапке, пункты меню, «закрыть» статью.
-     Тёмные слои — обычным box-shadow, белые — слоем с --hdr-blend. */
-  --pill-fill: #121212;
-  --pill-gradient: linear-gradient(
-    0deg,
-    rgba(255, 255, 255, 0.2) 0%,
-    rgba(0, 0, 0, 0.05) 32%,
-    rgba(255, 255, 255, 0.1) 100%
-  );
+     Тёмные слои — обычным box-shadow, белые — слоем с --hdr-blend.
+     Заливки нет: кнопки прозрачные, вид дают только тени. */
   --pill-shadow: 0px 6px 10px 0px rgba(0, 0, 0, 0.2), 2px 0px 2px 0px rgba(0, 0, 0, 0.3),
     -2px 0px 2px 0px rgba(0, 0, 0, 0.3), inset 0px 6px 20px -4px rgba(0, 0, 0, 0.3),
     inset 0px 4px 20px 0px rgba(0, 0, 0, 0.3);
@@ -67,6 +61,9 @@
   --chrome-top: 25px;
   --menu-item-h: 34px;
   --nav-btn-h: 40px;
+  /* Полная высота шапки: 20px паддинга сверху + 40px кнопок + 20px снизу.
+     По ней считается, насколько контейнер карточек заходит под шапку. */
+  --topbar-h: 80px;
 }
 
 * {
@@ -425,6 +422,10 @@ img {
   flex-shrink: 0;
   position: relative;
   z-index: 30;
+  /* Шапка «парит» над полотном: она не занимает места в потоке, поэтому
+     контейнер карточек (.board-wrap) начинается от самого верха страницы.
+     Карточки при этом остаются на месте — отступ возвращает .board. */
+  margin-bottom: calc(-1 * var(--topbar-h));
 }
 
 .rail-banner {
@@ -459,16 +460,17 @@ img {
 }
 
 /* Подложка под кнопками и логотипом: чёрный у верхней кромки → прозрачный
-   низ. Высота больше самой шапки, чтобы карточки «проявлялись» плавно.
-   Появляется при прокрутке (ниже) и всегда включена на мобильной, где шапка
-   sticky. */
+   низ. Высота равна самой шапке, поэтому градиент закрывает только кнопки
+   меню и логотип — область под шапкой (якорь «наверх», карточки) остаётся
+   чистой. Появляется при прокрутке (ниже) и всегда включена на мобильной,
+   где шапка sticky. */
 .topbar::before {
   content: "";
   position: absolute;
   left: 0;
   right: 0;
   top: 0;
-  height: 128px;
+  height: 100%;
   background: var(--chrome-fade);
   pointer-events: none;
   z-index: -1;
@@ -530,16 +532,14 @@ img {
   opacity: 0.8;
   position: relative;
   overflow: hidden;
-  /* Тёмная заливка + градиент поверх неё (bg-blend-overlay): на чёрном фоне
-     получается почти ровный #0f0f0f, а на картинках пилюля остаётся тёмной. */
-  background-color: var(--pill-fill);
-  background-image: var(--pill-gradient);
-  background-blend-mode: overlay;
+  /* Подложки нет: кнопка прозрачная, как и была — видно только тени.
+     Лёгкий белый градиент даёт стеклянный блик, но не затемняет фон. */
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%);
   box-shadow: var(--pill-shadow);
   transition:
     width 150ms var(--ease-out-back),
     height 150ms var(--ease-out-back),
-    background-color 150ms var(--ease-out-back);
+    background 150ms var(--ease-out-back);
 }
 
 /* Белые слои — HDR: отдельным слоем, аддитивно (см. --hdr-blend). */
@@ -562,19 +562,21 @@ img {
 .nav-btn:focus-visible .nav-btn-pill {
   width: 52px;
   height: 36px;
-  background-color: #2b2b2b;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
 }
 
 @media (hover: hover) {
   .nav-btn:hover .nav-btn-pill {
     width: 52px;
     height: 36px;
-    background-color: #2b2b2b;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
   }
 }
 
 .nav-btn.is-active .nav-btn-pill {
-  background-color: #060606;
+  background:
+    linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%),
+    rgba(0, 0, 0, 0.2);
 }
 
 .nav-btn-icon {
@@ -634,6 +636,9 @@ img {
   display: flex;
   align-items: flex-start;
   gap: 15px;
+  /* Контейнер карточек заходит под шапку: сверху возвращаем её высоту,
+     чтобы карточки стояли ровно там же, где и раньше. */
+  padding-top: var(--topbar-h);
   padding-bottom: 130px;
 }
 
@@ -704,8 +709,14 @@ img {
   box-shadow: var(--card-inset);
 }
 
-/* Белый кант карточки — HDR-слой поверх картинки (см. --hdr-blend). */
-.card-chrome::after {
+/* Белый кант карточки — HDR-слой поверх картинки и тёмной кромки
+   (см. --hdr-blend). Живёт на самой карточке, а не внутри .card-chrome:
+   .card-chrome — отдельный контекст наложения (z-index: 8), внутри него
+   аддитивно складывать не с чем, и белый кант выходил ровной серой каймой.
+   Отсюда z-index: 9 — слой должен лежать над .card-chrome (8), ховером (4)
+   и градиентом ссылки (3). */
+.card::after,
+.social-card::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -713,6 +724,7 @@ img {
   pointer-events: none;
   box-shadow: var(--card-hdr);
   mix-blend-mode: var(--hdr-blend);
+  z-index: 9;
 }
 
 .card-title {
@@ -841,7 +853,7 @@ img {
   .card--link:hover .card-link-btn .nav-btn-pill {
     width: 52px;
     height: 36px;
-    background-color: #2b2b2b;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
   }
 }
 
@@ -1951,14 +1963,12 @@ a.tg-cta {
   font-weight: 600;
   letter-spacing: 0.04em;
   white-space: nowrap;
-  /* Те же заливка и тени, что у пилюль соцсетей в шапке. */
-  background-color: var(--pill-fill);
-  background-image: var(--pill-gradient);
-  background-blend-mode: overlay;
+  /* Те же прозрачная подложка и тени, что у пилюль соцсетей в шапке. */
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%);
   box-shadow: var(--pill-shadow);
   transition:
     transform 150ms var(--ease-out-back),
-    background-color 150ms var(--ease-out-back);
+    background 150ms var(--ease-out-back);
 }
 
 /* Белые слои — HDR (аддитивно), как у .nav-btn-pill::after. */
@@ -1975,13 +1985,13 @@ a.tg-cta {
 @media (hover: hover) {
   .menu-item:hover {
     transform: scale(1.03);
-    background-color: #2b2b2b;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
   }
 }
 
 .menu-item:focus-visible {
   transform: scale(1.03);
-  background-color: #2b2b2b;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
 }
 
 /* ——— сенсорные экраны: эффект «hover» срабатывает только в момент нажатия ——— */
@@ -1989,7 +1999,7 @@ a.tg-cta {
   .nav-btn:active .nav-btn-pill {
     width: 52px;
     height: 36px;
-    background-color: #2b2b2b;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
   }
 
   .card:active .card-hover {
@@ -2004,7 +2014,7 @@ a.tg-cta {
   .card--link:active .card-link-btn .nav-btn-pill {
     width: 52px;
     height: 36px;
-    background-color: #2b2b2b;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
   }
 
   .social-dot:active {
@@ -2032,7 +2042,7 @@ a.tg-cta {
 
   .menu-item:active {
     transform: scale(1.03);
-    background-color: #2b2b2b;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.3) 0%, rgba(255, 255, 255, 0.6) 100%);
   }
 
   .menu-toggle:active {
@@ -2243,6 +2253,7 @@ a.tg-cta {
   .menu-items {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 8px;
   }
 
@@ -2314,6 +2325,9 @@ a.tg-cta {
     isolation: isolate;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
+    /* На мобильной шапка sticky и живёт в потоке — страница скроллится
+       целиком, подныривать контейнеру карточек под неё не нужно. */
+    margin-bottom: 0;
   }
 
   /* Заплатка над sticky-блоком с кнопками и логотипом LEDNIQUE.
@@ -2366,6 +2380,8 @@ a.tg-cta {
   }
 
   .board {
+    /* Шапка на мобильной не перекрывает полотно — верхний отступ не нужен. */
+    padding-top: 0;
     padding-bottom: 24px;
   }
 
