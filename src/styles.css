@@ -11,9 +11,47 @@
   --status-bar: #000;
   --ease-out-back: cubic-bezier(0.01, 1.43, 0.46, 1.85);
   --link-ease: cubic-bezier(0.38, 0, 0, 1);
-  --card-inset: 0px 3px 2px rgba(255, 255, 255, 0.5) inset,
-    0px -3px 2px rgba(255, 255, 255, 0.3) inset;
   --font: "Montserrat", system-ui, sans-serif;
+
+  /* ——— HDR ———
+     Белые слои теней нельзя рисовать общим box-shadow: на тёмной пилюле
+     обычный белый инсет превращается в ровную серую кайму. Поэтому «свет»
+     живёт отдельным слоем (::after) с mix-blend-mode: plus-lighter — слои
+     складываются аддитивно, как свет, и в сумме выходят за пределы обычного
+     белого. На HDR/EDR-экранах это настоящий светящийся кант, на обычных
+     экран аккуратно срезает его в белый.
+     Фолбэк для браузеров без plus-lighter — screen (см. @supports ниже). */
+
+  /* Пилюли: кнопки соцсетей в шапке, пункты меню, «закрыть» статью.
+     Тёмные слои — обычным box-shadow, белые — слоем с plus-lighter.
+     Заливки нет: кнопки прозрачные, вид дают только тени. */
+  --pill-shadow: 0px 6px 10px 0px rgba(0, 0, 0, 0.2), 2px 0px 2px 0px rgba(0, 0, 0, 0.3),
+    -2px 0px 2px 0px rgba(0, 0, 0, 0.3), inset 0px 6px 20px -4px rgba(0, 0, 0, 0.3),
+    inset 0px 4px 20px 0px rgba(0, 0, 0, 0.3);
+  --pill-hdr: inset 0px -8px 1px -5px rgba(255, 255, 255, 0.3),
+    inset 0px 8px 6px -5px rgba(255, 255, 255, 0.6),
+    inset 0px 8px 0.5px -5px rgba(255, 255, 255, 0.5);
+
+  /* Карточки ленты: внешние тени и тёмная внутренняя кромка — обычные,
+     верхний белый кант — HDR-слоем. */
+  --card-shadow: 0px 4px 4px 0px rgba(0, 0, 0, 0.25), 1px 0px 1px 0px rgba(0, 0, 0, 0.3),
+    -1px 0px 0px 0px rgba(0, 0, 0, 0.3);
+  --card-inset: inset 0px 2px 3px 0px rgba(0, 0, 0, 0.3);
+  --card-hdr: inset 0px -1px 1px 0px rgba(255, 255, 255, 0.3),
+    inset 0px 0.5px 0.5px 0px rgba(255, 255, 255, 0.5),
+    inset 0px 1px 0.5px 0px rgba(255, 255, 255, 0.5);
+
+  /* Тень текста (Figma: X 0 · Y 0 · Blur 10 · 50 %). Держит контраст подписи
+     на светлых участках картинок. У статей тень выключена. */
+  --text-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+
+  /* Подложка шапки: чёрный у верхней кромки → прозрачный низ. */
+  --chrome-fade: linear-gradient(
+    180deg,
+    #000 0%,
+    rgba(0, 0, 0, 0.86) 45%,
+    rgba(0, 0, 0, 0) 100%
+  );
   /* Верхняя линия «хрома» сайта на компьютере: от неё отсчитываются кнопки
      меню (.menu-item) справа и кнопка «закрыть» (.nav-btn) слева. Высоты у
      них разные, поэтому обе величины держим рядом — по ним считается
@@ -21,6 +59,9 @@
   --chrome-top: 25px;
   --menu-item-h: 34px;
   --nav-btn-h: 40px;
+  /* Полная высота шапки: 20px паддинга сверху + 40px кнопок + 20px снизу.
+     По ней считается, насколько контейнер карточек заходит под шапку. */
+  --topbar-h: 80px;
 }
 
 * {
@@ -118,6 +159,12 @@ textarea,
 html,
 body,
 #root {
+  /* Включаем отрисовку в расширенном динамическом диапазоне. По умолчанию
+     браузер держит страницу в SDR (`standard`) и срезает аддитивные белые
+     слои (mix-blend-mode: plus-lighter) к обычному белому — видимого «света»
+     не получается. `no-limit` разрешает отдать на HDR/EDR-экран значения
+     ярче 1.0, и кант у кнопок и карточек действительно светится. */
+  dynamic-range-limit: no-limit;
   height: 100%;
   height: 100dvh;
   min-height: 100%;
@@ -126,6 +173,19 @@ body,
   color: #fff;
   font-family: var(--font);
   -webkit-font-smoothing: antialiased;
+  /* Тень у всего текста сайта — она держит контраст подписи на светлых
+     участках картинок. Наследуется всеми потомками, поэтому выключается
+     точечно: у статей (длинный набор с ореолом «грязнит» строку) и в
+     панели управления (там плотная сетка интерфейса). */
+  text-shadow: var(--text-shadow);
+}
+
+/* Статьи и панель управления — единственные зоны без тени текста. */
+.admin,
+.admin *,
+.stage-reader,
+.stage-reader * {
+  text-shadow: none;
 }
 
 ::selection {
@@ -366,6 +426,10 @@ img {
   flex-shrink: 0;
   position: relative;
   z-index: 30;
+  /* Шапка «парит» над полотном: она не занимает места в потоке, поэтому
+     контейнер карточек (.board-wrap) начинается от самого верха страницы.
+     Карточки при этом остаются на месте — отступ возвращает .board. */
+  margin-bottom: calc(-1 * var(--topbar-h));
 }
 
 .rail-banner {
@@ -399,12 +463,33 @@ img {
   height: 40px;
 }
 
-.sidebar.is-scrolled .topbar {
-  background: #000;
+/* Подложка под кнопками и логотипом: чёрный у верхней кромки → прозрачный
+   низ. Высота равна самой шапке, поэтому градиент закрывает только кнопки
+   меню и логотип — область под шапкой (якорь «наверх», карточки) остаётся
+   чистой. Появляется при прокрутке (ниже) и всегда включена на мобильной,
+   где шапка sticky. */
+.topbar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 100%;
+  background: var(--chrome-fade);
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity 220ms ease;
+}
+
+.sidebar.is-scrolled .topbar::before {
+  opacity: 1;
 }
 
 .logo {
-  width: 120px;
+  /* Монограмма 128×73 в холсте 158×103. Высота знака прежняя — 32px,
+     поэтому ширина уменьшилась до ~56px. */
+  width: 56px;
   height: 32px;
   margin-left: auto;
   transform: translateX(-20px);
@@ -416,11 +501,16 @@ img {
 }
 
 .logo svg {
+  /* Холст масштабируется целиком (158×103 → 69.26×45.15), чтобы фильтр с
+     тенями не обрезался. Знак внутри холста стоит не по центру по вертикали
+     (центр формы — 45.5 из 103), поэтому холст поднят на 2.6px: буквы
+     остаются на оптической середине кнопки. */
   position: absolute;
-  left: 0;
-  top: -6px;
-  width: 140px;
-  height: 52px;
+  left: 50%;
+  top: calc(50% + 2.6px);
+  width: 69.26px;
+  height: 45.15px;
+  transform: translate(-50%, -50%);
 }
 
 .nav-btn {
@@ -443,34 +533,41 @@ img {
   width: 46px;
   height: 32px;
   border-radius: 10000px;
-  opacity: 0.8;
+  /* opacity здесь больше нет: она делала из пилюли отдельную группу, и
+     аддитивный белый слой (--pill-hdr) упирался в 1.0 ещё до неё, а потом
+     вся группа умножалсь на 0.8 — белый кант физически не мог стать светом.
+     Теперь тени те же, что у пунктов меню (--pill-shadow/--pill-hdr). */
   position: relative;
   overflow: hidden;
+  /* Подложки нет: кнопка прозрачная, как и была — видно только тени.
+     Лёгкий белый градиент даёт стеклянный блик, но не затемняет фон. */
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%);
-  box-shadow:
-    0px 3px 6px rgba(0, 0, 0, 0.2),
-    1px 0px 2px rgba(0, 0, 0, 0.3),
-    -1px 0px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--pill-shadow);
   transition:
     width 150ms var(--ease-out-back),
     height 150ms var(--ease-out-back),
     background 150ms var(--ease-out-back);
 }
 
+/* Белые слои — HDR: отдельным слоем, аддитивно (plus-lighter). */
 .nav-btn-pill::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  box-shadow:
-    0px -3px 1px rgba(255, 255, 255, 0.15) inset,
-    0px 2px 2px #fff inset;
+  box-shadow: var(--pill-hdr);
   mix-blend-mode: plus-lighter;
 }
 
+/* Там, где plus-lighter не умеют, складываем слои через screen. */
 @supports not (mix-blend-mode: plus-lighter) {
-  .nav-btn-pill::after {
+  .nav-btn-pill::after,
+  .menu-item::after,
+  .card::after,
+  .social-card::after,
+  .social-dot::after,
+  .social-well::after {
     mix-blend-mode: screen;
   }
 }
@@ -552,6 +649,9 @@ img {
   display: flex;
   align-items: flex-start;
   gap: 15px;
+  /* Контейнер карточек заходит под шапку: сверху возвращаем её высоту,
+     чтобы карточки стояли ровно там же, где и раньше. */
+  padding-top: var(--topbar-h);
   padding-bottom: 130px;
 }
 
@@ -576,6 +676,9 @@ img {
   flex-shrink: 0;
   text-align: left;
   color: #fff;
+  /* Внешние тени карточки. Тёмная внутренняя кромка и белый HDR-кант живут
+     на .card-chrome — иначе они уходят под картинку. */
+  box-shadow: var(--card-shadow);
 }
 
 .card {
@@ -619,6 +722,32 @@ img {
   box-shadow: var(--card-inset);
 }
 
+/* Белый кант карточки — HDR-слой поверх картинки и тёмной кромки
+   (plus-lighter). Живёт на самой карточке, а не внутри .card-chrome:
+   .card-chrome — отдельный контекст наложения (z-index: 8), внутри него
+   аддитивно складывать не с чем, и белый кант выходил ровной серой каймой.
+   Отсюда z-index: 9 — слой должен лежать над .card-chrome (8), ховером (4)
+   и градиентом ссылки (3). */
+.card::after,
+.social-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: var(--card-hdr);
+  mix-blend-mode: plus-lighter;
+  z-index: 9;
+}
+
+.card {
+  /* Карточка статьи — это <button>, а у элементов форм браузер сбрасывает
+     часть унаследованных текстовых свойств, поэтому общая тень текста с
+     #root сюда не доезжает. Задаём её явно — на всю карточку, чтобы тень
+     получили и название, и подписи внутри. */
+  text-shadow: var(--text-shadow);
+}
+
 .card-title {
   width: 130px;
   color: #fff;
@@ -626,6 +755,7 @@ img {
   font-weight: 600;
   line-height: 1.2;
   word-wrap: break-word;
+  text-shadow: var(--text-shadow);
 }
 
 .card-img {
@@ -758,7 +888,7 @@ img {
 }
 
 .social-card .card-title {
-  color: #000;
+  color: #fff;
 }
 
 .social-well {
@@ -766,7 +896,8 @@ img {
   min-height: 72px;
   padding: 8px 10px;
   background: #363636;
-  box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.25) inset, 0px 1px 2px rgba(255, 255, 255, 0.6) inset;
+  position: relative;
+  box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.25) inset;
   border-radius: 36px;
   outline: 2px solid #242424;
   outline-offset: -2px;
@@ -784,8 +915,29 @@ img {
   flex: 0 0 44px;
   border-radius: 50%;
   overflow: hidden;
-  box-shadow: 0 2px 1px rgba(255, 255, 255, 0.5) inset, 0 -1px 1px rgba(255, 255, 255, 0.3) inset;
+  position: relative;
   transition: transform 150ms var(--ease-out-back);
+}
+
+/* Белые канты иконок и «колодца» — HDR-слоями, как у пилюль. */
+.social-dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  box-shadow: inset 0 2px 1px rgba(255, 255, 255, 0.5), inset 0 -1px 1px rgba(255, 255, 255, 0.3);
+  mix-blend-mode: plus-lighter;
+}
+
+.social-well::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0px 1px 2px rgba(255, 255, 255, 0.6);
+  mix-blend-mode: plus-lighter;
 }
 
 @media (hover: hover) {
@@ -839,20 +991,6 @@ img {
   transition: opacity 280ms ease;
 }
 
-.sidebar-topfade::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  /* Поднимаем градиент к блоку с логотипом (в нижнюю подложку шапки, не
-     перекрывая ряд навигации) и убираем сплошную чёрную полосу: плавный
-     переход от непрозрачного чёрного под шапкой к прозрачному. */
-  top: -16px;
-  height: 104px;
-  background: linear-gradient(180deg, #000 0%, rgba(0, 0, 0, 0) 100%);
-  pointer-events: none;
-}
-
 .sidebar-topfade.is-on {
   opacity: 1;
 }
@@ -860,7 +998,8 @@ img {
 .scroll-anchor {
   position: absolute;
   left: 50%;
-  top: 16px;
+  /* 16px − 10px: кнопка поднята выше, подложки за ней больше нет. */
+  top: 6px;
   transform: translateX(-50%);
   pointer-events: auto;
   background: none;
@@ -1846,25 +1985,22 @@ a.tg-cta {
   font-weight: 600;
   letter-spacing: 0.04em;
   white-space: nowrap;
+  /* Те же прозрачная подложка и тени, что у пилюль соцсетей в шапке. */
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.1) 100%);
-  box-shadow:
-    0px 3px 6px rgba(0, 0, 0, 0.2),
-    1px 0px 2px rgba(0, 0, 0, 0.3),
-    -1px 0px 2px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--pill-shadow);
   transition:
     transform 150ms var(--ease-out-back),
     background 150ms var(--ease-out-back);
 }
 
+/* Белые слои — HDR (аддитивно), как у .nav-btn-pill::after. */
 .menu-item::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
   pointer-events: none;
-  box-shadow:
-    0px -3px 1px rgba(255, 255, 255, 0.15) inset,
-    0px 2px 2px #fff inset;
+  box-shadow: var(--pill-hdr);
   mix-blend-mode: plus-lighter;
 }
 
@@ -2139,6 +2275,7 @@ a.tg-cta {
   .menu-items {
     display: flex;
     flex-wrap: wrap;
+    justify-content: center;
     gap: 8px;
   }
 
@@ -2204,10 +2341,15 @@ a.tg-cta {
     top: 0;
     z-index: 40;
     width: 100%;
-    background: #000;
+    /* Прозрачный: фон даёт градиент .topbar::before, иначе он не был бы
+       виден под сплошной заливкой. */
+    background: transparent;
     isolation: isolate;
     transform: translateZ(0);
     -webkit-transform: translateZ(0);
+    /* На мобильной шапка sticky и живёт в потоке — страница скроллится
+       целиком, подныривать контейнеру карточек под неё не нужно. */
+    margin-bottom: 0;
   }
 
   /* Заплатка над sticky-блоком с кнопками и логотипом LEDNIQUE.
@@ -2236,11 +2378,13 @@ a.tg-cta {
     top: auto;
     z-index: 5;
     width: 100%;
-    background: #000;
+    /* Подложка — градиент из .topbar::before, она на мобильной включена
+       всегда: чёрная полоса во всю высоту шапки больше не нужна. */
+    background: transparent;
   }
 
-  .sidebar.is-scrolled .topbar {
-    background: #000;
+  .topbar::before {
+    opacity: 1;
   }
 
   .board-wrap {
@@ -2258,6 +2402,8 @@ a.tg-cta {
   }
 
   .board {
+    /* Шапка на мобильной не перекрывает полотно — верхний отступ не нужен. */
+    padding-top: 0;
     padding-bottom: 24px;
   }
 
