@@ -106,9 +106,26 @@ npx supabase link --project-ref <project-ref>
 npx supabase functions deploy google-photos --no-verify-jwt
 ```
 
-`--no-verify-jwt` обязателен: галерея публичная, у посетителя нет Supabase-сессии.
-Код функции — `supabase/functions/google-photos/index.ts` (та же логика, что в
-`api/google-photos.ts` для Vercel).
+`--no-verify-jwt` отключает проверку JWT: галерея публичная, Supabase-сессии у
+посетителя нет. Код функции — `supabase/functions/google-photos/index.ts`
+(та же логика, что в `api/google-photos.ts` для Vercel).
+
+**Ключ в запросе.** В проектах на новых ключах Supabase (`sb_publishable_…`)
+шлюз требует ключ на каждом запросе к функции, иначе отвечает ещё до запуска
+кода:
+
+```
+401 {"code":"MISSING_CREDENTIALS","message":"No credentials found on the request…"}
+```
+
+Поэтому сайт при внешнем `VITE_API_BASE` сам добавляет заголовок
+`apikey: <VITE_SUPABASE_ANON_KEY>` (см. `apiFetch` в `src/lib/api.ts`). Ключ тот
+же, что нужен базе, — отдельная переменная не требуется. На Vercel заголовок не
+добавляется: функции свои.
+
+Если после смены переменных галерея всё ещё даёт 401 — проверьте, что в
+`VITE_SUPABASE_ANON_KEY` лежит ключ именно этого проекта, и перезапустите
+workflow (значения `VITE_*` вшиваются в сборку при билде).
 
 ---
 
