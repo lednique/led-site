@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useI18n } from "../i18n";
+import { apiUrl } from "../lib/api";
 
 type GooglePhoto = {
   id: string;
@@ -43,7 +44,7 @@ async function fetchAlbum(album: string): Promise<AlbumResponse> {
   const pending = pendingRequests.get(album);
   if (pending) return pending;
 
-  const request = fetch(`/api/google-photos?album=${encodeURIComponent(album)}`)
+  const request = fetch(apiUrl(`/google-photos?album=${encodeURIComponent(album)}`))
     .then(async (response) => {
       const body = (await response.json().catch(() => null)) as { photos?: unknown; error?: unknown } | null;
       if (!response.ok) {

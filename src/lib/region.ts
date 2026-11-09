@@ -1,3 +1,5 @@
+import { apiUrl } from "./api";
+
 /** Регион посетителя: влияет только на то, какая версия блоков показывается. */
 export type Region = "ru" | "global";
 
@@ -48,6 +50,53 @@ function storedOverride(): Region | null {
   }
 }
 
+/**
+ * Часовые пояса России. Нужны как фолбэк, когда серверного `/api/region`
+ * нет (сайт на статическом хостинге — GitHub Pages): определяем регион
+ * по часовому поясу браузера, без единого сетевого запроса и без передачи
+ * IP посетителя третьим лицам.
+ */
+const RU_TIMEZONES = new Set<string>([
+  "Europe/Moscow",
+  "Europe/Kaliningrad",
+  "Europe/Volgograd",
+  "Europe/Kirov",
+  "Europe/Astrakhan",
+  "Europe/Saratov",
+  "Europe/Ulyanovsk",
+  "Europe/Samara",
+  "Europe/Simferopol",
+  "Asia/Yekaterinburg",
+  "Asia/Omsk",
+  "Asia/Novosibirsk",
+  "Asia/Barnaul",
+  "Asia/Tomsk",
+  "Asia/Novokuznetsk",
+  "Asia/Krasnoyarsk",
+  "Asia/Irkutsk",
+  "Asia/Chita",
+  "Asia/Yakutsk",
+  "Asia/Khandyga",
+  "Asia/Vladivostok",
+  "Asia/Ust-Nera",
+  "Asia/Magadan",
+  "Asia/Sakhalin",
+  "Asia/Srednekolymsk",
+  "Asia/Kamchatka",
+  "Asia/Anadyr",
+]);
+
+/** Регион по часовому поясу. null — если определить не удалось. */
+function regionFromTimeZone(): Region | null {
+  try {
+    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+    if (!tz) return null;
+    return RU_TIMEZONES.has(tz) ? "ru" : "global";
+  } catch {
+    return null;
+  }
+}
+
 function cachedRegion(): Region | null {
   try {
     return asRegion(sessionStorage.getItem(SESSION_KEY));
@@ -68,7 +117,7 @@ async function askServer(): Promise<Region | null> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const resp = await fetch("/api/region", { cache: "no-store", signal: controller.signal });
+    const resp = await fetch(apiUrl("/region"), { cache: "no-store", signal: controller.signal });
     if (!resp.ok) return null;
     const body = (await resp.json().catch(() => null)) as { region?: unknown } | null;
     return asRegion(body?.region);
@@ -79,7 +128,7 @@ async function askServer(): Promise<Region | null> {
   }
 }
 
-/** Итоговый регион: override → кэш вкладки → ответ сервера → «ru». */
+/** Итоговый регион: override → кэш вкладки → ответ сервера → пояс → «ru». */
 export async function detectRegion(): Promise<Region> {
   const override = applyUrlOverride() ?? storedOverride();
   if (override) return override;
@@ -88,7 +137,14 @@ export async function detectRegion(): Promise<Region> {
   if (cached) return cached;
 
   const detected = await askServer();
-  const region = detected ?? FALLBACK;
-  if (detected) remember(detected);
+  // Сервер ответил — на Vercel это точное определение по IP, верим ему.
+  if (detected) {
+    remember(detected);
+    return detected;
+  }
+  // Сервера нет (статический хостинг): решаем по часовому поясу браузера,
+  // а если и он не читается — «ru», версия без символики Meta.
+  const region = regionFromTimeZone() ?? FALLBACK;
+  remember(region);
   return region;
 }

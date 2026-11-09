@@ -9,6 +9,11 @@ interface ImportMetaEnv {
   readonly VITE_ADMIN_EMAIL?: string;
   /** Регион для локальной разработки: "ru" (по умолчанию) или "global". */
   readonly VITE_DEV_REGION?: string;
+  /**
+   * База серверных функций. По умолчанию `/api` (Vercel). На статическом
+   * хостинге — `https://<project>.supabase.co/functions/v1`.
+   */
+  readonly VITE_API_BASE?: string;
 }
 
 interface ImportMeta {
