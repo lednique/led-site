@@ -1,0 +1,81 @@
+name: Deploy to GitHub Pages
+
+# Сайт — Vite-приложение: Pages должен отдавать папку dist, а не исходники
+# репозитория. Поэтому сборка и публикация идут из этого workflow.
+#
+# Что нужно один раз настроить в репозитории:
+#   Settings → Pages → Build and deployment → Source: GitHub Actions
+#   Settings → Secrets and variables → Actions:
+#     VITE_SUPABASE_URL       (Project URL из Supabase)
+#     VITE_SUPABASE_ANON_KEY  (anon public key)
+#   Переменные публичные по своей природе (они всё равно попадают в бандл),
+#   поэтому подойдут и Variables, и Secrets — workflow читает оба места.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Одновременно живёт только один деплой; новый отменяет предыдущий.
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Проверка переменных Supabase
+        env:
+          URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "::error::Не заданы VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY."
+            echo "Добавьте их в Settings → Secrets and variables → Actions."
+            echo "Без них сайт собирается пустым (данные берутся из localStorage)."
+            exit 1
+          fi
+
+      - name: Сборка
+        env:
+          VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
+          VITE_ADMIN_EMAIL: ${{ vars.VITE_ADMIN_EMAIL || secrets.VITE_ADMIN_EMAIL }}
+        run: npm run build
+
+      # GitHub Pages иначе отдаёт 404 на прямые заходы по адресам вроде
+      # /privacy или /admin: копия index.html заставляет отдать приложение,
+      # а маршрут уже разбирает react-router.
+      - name: SPA-фолбэк (404.html)
+        run: cp dist/index.html dist/404.html
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
