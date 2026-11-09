@@ -56,6 +56,9 @@ jobs:
           VITE_SUPABASE_URL: ${{ vars.VITE_SUPABASE_URL || secrets.VITE_SUPABASE_URL }}
           VITE_SUPABASE_ANON_KEY: ${{ vars.VITE_SUPABASE_ANON_KEY || secrets.VITE_SUPABASE_ANON_KEY }}
           VITE_ADMIN_EMAIL: ${{ vars.VITE_ADMIN_EMAIL || secrets.VITE_ADMIN_EMAIL }}
+          # База серверных функций: без неё клиент ходит на /api, которого
+          # на Pages нет (галерея Google Photos не загрузится).
+          VITE_API_BASE: ${{ vars.VITE_API_BASE || secrets.VITE_API_BASE }}
         run: npm run build
 
       # GitHub Pages иначе отдаёт 404 на прямые заходы по адресам вроде

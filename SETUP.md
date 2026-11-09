@@ -79,6 +79,39 @@ git push -u origin main
 
 ---
 
+## Часть 3.1. Хостинг GitHub Pages (без Vercel)
+
+GitHub Pages отдаёт только файлы — серверного кода (`api/*.ts`) там нет.
+Сайт это переживает: регион определяется по часовому поясу браузера, вход в
+панель идёт через Supabase Auth. Единственное, что требует сервера, — галерея
+Google Photos; для неё есть функция в Supabase Edge Functions.
+
+**Сайт**
+
+1. **Settings → Pages → Build and deployment → Source: GitHub Actions.**
+   Сборку и публикацию `dist` делает `.github/workflows/deploy-pages.yml`.
+2. **Settings → Secrets and variables → Actions → Variables** — добавьте:
+   `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_ADMIN_EMAIL` (необязательно)
+   и `VITE_API_BASE` = `https://<project-ref>.supabase.co/functions/v1`
+   (нужен, только если делаете функцию Google Photos из пункта ниже).
+3. Запушьте в `main` — деплой запустится сам (или **Actions → Deploy to GitHub
+   Pages → Run workflow**). Прямые заходы на `/privacy`, `/admin` работают:
+   workflow кладёт копию `index.html` в `404.html`.
+
+**Функция Google Photos**
+
+```bash
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase functions deploy google-photos --no-verify-jwt
+```
+
+`--no-verify-jwt` обязателен: галерея публичная, у посетителя нет Supabase-сессии.
+Код функции — `supabase/functions/google-photos/index.ts` (та же логика, что в
+`api/google-photos.ts` для Vercel).
+
+---
+
 ## Часть 4. Панель управления
 
 Адрес панели: `https://ВАШ-САЙТ.vercel.app/admin`
