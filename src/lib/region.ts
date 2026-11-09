@@ -1,4 +1,4 @@
-import { apiUrl } from "./api";
+import { apiFetch } from "./api";
 
 /** Регион посетителя: влияет только на то, какая версия блоков показывается. */
 export type Region = "ru" | "global";
@@ -117,7 +117,7 @@ async function askServer(): Promise<Region | null> {
   const controller = new AbortController();
   const timer = window.setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const resp = await fetch(apiUrl("/region"), { cache: "no-store", signal: controller.signal });
+    const resp = await apiFetch("/region", { cache: "no-store", signal: controller.signal });
     if (!resp.ok) return null;
     const body = (await resp.json().catch(() => null)) as { region?: unknown } | null;
     return asRegion(body?.region);
